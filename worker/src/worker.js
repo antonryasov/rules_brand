@@ -16,6 +16,34 @@
    ============================================================ */
 
 /* ==== личный кабинет (вставляется при сборке из папки admin/) ==== */
+const NOT_BUILT_HTML = `<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Кабинет не собран</title>
+<style>
+ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070707;color:#efeae0;
+      font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:28px}
+ .card{max-width:620px;border:1px solid rgba(239,234,224,.14);border-radius:18px;padding:32px 34px;background:#0d0d0d}
+ h1{font-size:22px;margin:0 0 14px;letter-spacing:.02em}
+ code{background:#151515;padding:2px 7px;border-radius:6px;font-size:14px;color:#8fd3ae}
+ ol{padding-left:20px;margin:14px 0 0}
+ li{margin-bottom:10px}
+ a{color:#2e8b62}
+ .hint{margin-top:22px;color:#8e887e;font-size:14px}
+</style></head>
+<body><div class="card">
+<h1>В Worker вставлен не тот файл</h1>
+<p>В коде остался служебный маркер <code>__ADMIN_HTML__</code> — значит в Cloudflare
+попал исходник <code>worker/src/worker.js</code>, а интерфейс кабинета в него ещё не вшит.</p>
+<ol>
+ <li>Откройте в репозитории файл <code>worker/dist/worker.js</code> (именно <b>dist</b>).</li>
+ <li>Скопируйте его целиком и вставьте в Cloudflare: Worker → <b>Edit code</b> → заменить всё → <b>Deploy</b>.</li>
+ <li>Обновите эту страницу.</li>
+</ol>
+<p class="hint">Каталог и приём заказов при этом уже работают: <a href="/health">/health</a>,
+<a href="/catalog">/catalog</a>. Пострадал только интерфейс кабинета.</p>
+</div></body></html>`;
+
 const ADMIN_HTML = "__ADMIN_HTML__";
 
 /* ==== статусы заказа ==== */
@@ -115,6 +143,42 @@ async function parseBody(req, max = 200000) {
 /* ============================ Telegram ============================ */
 const botname = (env) => String(env.CUSTOMER_BOT_USERNAME || '').replace(/^@/, '');
 const validBot = (env) => /^[a-zA-Z0-9_]{5,32}$/.test(botname(env)) && /bot$/i.test(botname(env));
+
+/* ============================ миграции на лету ============================ */
+/* D1 не умеет «ADD COLUMN IF NOT EXISTS», поэтому колонки добавляем по одной
+   и молча пропускаем ошибку «duplicate column name». Вызывается один раз на
+   инстанс Worker перед работой с заказами, ботом и вложениями. */
+const EXTRA_COLUMNS = [
+  ['order_comments', 'kind', "TEXT NOT NULL DEFAULT 'text'"],
+  ['order_comments', 'file_id', "TEXT NOT NULL DEFAULT ''"],
+  ['order_comments', 'file_name', "TEXT NOT NULL DEFAULT ''"],
+  ['order_extra', 'delivery_point_code', "TEXT NOT NULL DEFAULT ''"],
+  ['order_extra', 'delivery_point_address', "TEXT NOT NULL DEFAULT ''"],
+  ['order_extra', 'delivery_tariff', "TEXT NOT NULL DEFAULT ''"]
+];
+let schemaReady = false;
+async function ensureSchema(env) {
+  if (schemaReady || !env.DB) return;
+  for (const [table, column, type] of EXTRA_COLUMNS) {
+    try {
+      await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`).run();
+    } catch (e) {
+      /* колонка уже есть */
+    }
+  }
+  try {
+    await env.DB
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS bot_state (
+           chat_id         TEXT PRIMARY KEY,
+           active_order_id TEXT NOT NULL DEFAULT '',
+           updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+         )`
+      )
+      .run();
+  } catch (e) {}
+  schemaReady = true;
+}
 
 async function telegram(token, method, payload) {
   if (!token) throw new Error('BOT_NOT_CONFIGURED');
@@ -234,6 +298,191 @@ async function publicCatalog(env, request) {
   );
 }
 
+/* ============================ СДЭК: доставка ============================
+   Ключи СДЭК живут только в секретах Cloudflare:
+     CDEK_CLIENT_ID, CDEK_CLIENT_SECRET — из личного кабинета СДЭК (Интеграция → API)
+     CDEK_TEST=1                        — тестовый контур (api.edu.cdek.ru)
+     CDEK_FROM_CITY=Москва              — город склада
+     CDEK_TARIFF_PVZ=136                — тариф «склад-склад» (пункт выдачи)
+     CDEK_TARIFF_COURIER=137            — тариф «склад-дверь» (курьер)
+     CDEK_WEIGHT=1500 (граммы), CDEK_LENGTH=30, CDEK_WIDTH=20, CDEK_HEIGHT=15 (см)
+   Если ключей нет — сайт показывает только «обсудим с продавцом»,
+   приём заказов продолжает работать.
+   ======================================================================= */
+const cdekCache = { token: '', exp: 0 };
+
+function cdekReady(env) {
+  return !!(env.CDEK_CLIENT_ID && env.CDEK_CLIENT_SECRET);
+}
+function cdekBase(env) {
+  return String(env.CDEK_TEST || '0') === '1' ? 'https://api.edu.cdek.ru/v2' : 'https://api.cdek.ru/v2';
+}
+async function cdekToken(env) {
+  if (cdekCache.token && cdekCache.exp > Date.now() + 60000) return cdekCache.token;
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: String(env.CDEK_CLIENT_ID),
+    client_secret: String(env.CDEK_CLIENT_SECRET)
+  });
+  const r = await fetch(cdekBase(env) + '/oauth/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.access_token) {
+    throw new Error('СДЭК: не удалось авторизоваться. Проверьте CDEK_CLIENT_ID и CDEK_CLIENT_SECRET.');
+  }
+  cdekCache.token = d.access_token;
+  cdekCache.exp = Date.now() + (Number(d.expires_in) || 3600) * 1000;
+  return cdekCache.token;
+}
+async function cdekRequest(env, path, init) {
+  const token = await cdekToken(env);
+  const r = await fetch(cdekBase(env) + path, {
+    ...(init || {}),
+    headers: { Authorization: 'Bearer ' + token, 'content-type': 'application/json' }
+  });
+  const d = await r.json().catch(() => null);
+  if (!r.ok) {
+    const msg = d && d.errors && d.errors[0] && (d.errors[0].message || d.errors[0].code);
+    throw new Error('СДЭК: ' + (msg || 'ошибка ' + r.status));
+  }
+  return d;
+}
+async function cdekCity(env, rawCity) {
+  const name = clean(rawCity, 60);
+  if (name.length < 2) throw new Error('Укажите город доставки.');
+  const d = await cdekRequest(env, '/location/cities?country_codes=RU&size=10&city=' + encodeURIComponent(name));
+  const list = Array.isArray(d) ? d : [];
+  if (!list.length) throw new Error('Город «' + name + '» не найден в базе СДЭК.');
+  const lower = name.toLowerCase();
+  const hit = list.find((c) => String(c.city).toLowerCase() === lower) || list[0];
+  return { code: hit.code, city: hit.city, region: hit.region || '' };
+}
+async function cdekPoints(env, rawCity, limit) {
+  const place = await cdekCity(env, rawCity);
+  const d = await cdekRequest(
+    env,
+    '/deliverypoints?country_code=RU&type=PVZ&city_code=' + encodeURIComponent(place.code)
+  );
+  const points = (Array.isArray(d) ? d : []).slice(0, limit || 60).map((p) => {
+    const loc = p.location || {};
+    return {
+      code: p.code,
+      name: p.name,
+      address: loc.address_full || loc.address || p.name,
+      workTime: p.work_time || '',
+      latitude: loc.latitude || null,
+      longitude: loc.longitude || null,
+      note: p.note || ''
+    };
+  });
+  return { city: place, points };
+}
+async function cdekCalc(env, opts) {
+  const place = await cdekCity(env, opts.city);
+  const pvz = opts.method !== 'cdek_courier';
+  const tariff =
+    Number(opts.tariff) ||
+    Number(pvz ? env.CDEK_TARIFF_PVZ : env.CDEK_TARIFF_COURIER) ||
+    (pvz ? 136 : 137);
+  const pack = {
+    weight: Number(env.CDEK_WEIGHT) || 1500,
+    length: Number(env.CDEK_LENGTH) || 30,
+    width: Number(env.CDEK_WIDTH) || 20,
+    height: Number(env.CDEK_HEIGHT) || 15
+  };
+  const d = await cdekRequest(env, '/calculator/tariff', {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 1,
+      currency: 1,
+      date: new Date().toISOString().slice(0, 10),
+      tariff_code: tariff,
+      from_location: { city: clean(env.CDEK_FROM_CITY || 'Москва', 60), country_code: 'RU' },
+      to_location: { code: place.code, city: place.city, country_code: 'RU' },
+      packages: [pack]
+    })
+  });
+  return {
+    cost: Math.round(Number(d.total_sum) || 0),
+    periodMin: Number(d.period_min) || 0,
+    periodMax: Number(d.period_max) || 0,
+    tariff,
+    city: place.city
+  };
+}
+
+/* доставка, которую выбрал покупатель: проверяем и пересчитываем на сервере */
+async function resolveDelivery(env, raw) {
+  const none = { method: 'discuss', cost: 0, pointCode: '', pointAddress: '', tariff: '', city: '', periodMin: 0, periodMax: 0 };
+  if (!raw || typeof raw !== 'object') return none;
+  const method = String(raw.method || 'discuss');
+  if (method === 'discuss') return none;
+  if (method !== 'cdek_pvz' && method !== 'cdek_courier') return none;
+  if (!cdekReady(env)) throw new Error('Доставка СДЭК пока не настроена — выберите «обсудить с продавцом».');
+  const priced = await cdekCalc(env, { city: raw.city, method });
+  const out = {
+    method,
+    cost: priced.cost,
+    tariff: String(priced.tariff),
+    city: priced.city,
+    periodMin: priced.periodMin,
+    periodMax: priced.periodMax,
+    pointCode: '',
+    pointAddress: ''
+  };
+  if (method === 'cdek_pvz') {
+    if (!raw.pointCode) throw new Error('Выберите пункт выдачи СДЭК.');
+    out.pointCode = clean(raw.pointCode, 40);
+    out.pointAddress = clean(raw.pointAddress, 240);
+  }
+  return out;
+}
+const deliveryLabel = (m) =>
+  m === 'cdek_pvz' ? 'СДЭК, пункт выдачи' : m === 'cdek_courier' ? 'СДЭК, курьер' : 'обсудить с продавцом';
+
+/* публичные ручки доставки (их вызывает корзина на сайте) */
+async function deliveryApi(request, env, url) {
+  const { origin, ok } = allowedOrigin(env, request);
+  const cors = ok ? corsHeaders(origin) : { 'Access-Control-Allow-Origin': 'null' };
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  const path = url.pathname;
+  if (!cdekReady(env)) {
+    if (path === '/delivery/config') {
+      return json({ ok: true, cdek: { enabled: false }, methods: ['discuss'] }, 200, cors);
+    }
+    return json({ error: 'Доставка СДЭК ещё не подключена.' }, 503, cors);
+  }
+  try {
+    if (path === '/delivery/config') {
+      return json(
+        {
+          ok: true,
+          cdek: { enabled: true, test: String(env.CDEK_TEST || '0') === '1', fromCity: String(env.CDEK_FROM_CITY || 'Москва') },
+          methods: ['cdek_pvz', 'cdek_courier', 'discuss']
+        },
+        200,
+        { 'cache-control': 'public, max-age=300', ...cors }
+      );
+    }
+    if (path === '/delivery/points') {
+      const city = url.searchParams.get('city') || '';
+      const data = await cdekPoints(env, city, 60);
+      return json({ ok: true, ...data }, 200, { 'cache-control': 'public, max-age=600', ...cors });
+    }
+    if (path === '/delivery/calc') {
+      const b = request.method === 'POST' ? await parseBody(request, 4000) : Object.fromEntries(url.searchParams);
+      const cost = await cdekCalc(env, { city: b.city, method: b.method || 'cdek_pvz' });
+      return json({ ok: true, ...cost }, 200, cors);
+    }
+    return json({ error: 'Не найдено.' }, 404, cors);
+  } catch (e) {
+    return json({ error: String(e && e.message ? e.message : e) }, 400, cors);
+  }
+}
+
 /* ============================ заказ с сайта ============================ */
 function calculate(items, rawCode) {
   const subtotal = items.reduce((n, it) => n + it.price * it.qty, 0);
@@ -266,7 +515,9 @@ function ownerText(o) {
     `Промокод: ${o.calc.code || 'нет'}`,
     `Скидка: −${money(o.calc.discount)}`,
     `Итого за товары: ${money(o.calc.total)}`,
-    'Доставка и оплата: согласовать отдельно',
+    o.delivery && o.delivery.method !== 'discuss'
+      ? `Доставка: ${deliveryLabel(o.delivery.method)}${o.delivery.pointAddress ? ' · ' + o.delivery.pointAddress : ''} — ${money(o.delivery.cost)}`
+      : 'Доставка и оплата: согласовать отдельно',
     '',
     `Имя: ${o.name}`,
     `Телефон: ${o.phone}`,
@@ -288,6 +539,7 @@ async function createOrder(request, env, ctx) {
   if (!(request.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) {
     return json({ error: 'Неверный формат.' }, 415, corsHeaders(origin));
   }
+  await ensureSchema(env);
 
   try {
     const b = await parseBody(request, 12000);
@@ -334,6 +586,9 @@ async function createOrder(request, env, ctx) {
     const calc = calculate(items, promo);
     if (promo.trim() && !calc.code) throw new Error(calc.promoMessage);
 
+    /* доставка: если выбран СДЭК — стоимость пересчитываем на сервере */
+    const delivery = await resolveDelivery(env, b.delivery);
+
     const name = clean(b.name, 100);
     const phone = clean(b.phone, 40);
     const city = clean(b.city, 100);
@@ -343,14 +598,16 @@ async function createOrder(request, env, ctx) {
       throw new Error('Заполните имя, телефон, город и согласие.');
     }
 
-    const order = { id, items, calc, name, phone, city, contact, comment };
+    const order = { id, items, calc, name, phone, city, contact, comment, delivery };
     const stored = items.map((x) => ({ id: x.id, qty: x.qty, name: x.name, price: x.price }));
 
     await env.DB.batch([
       env.DB.prepare(
         'INSERT OR IGNORE INTO orders(id,token_hash,customer_name,phone,city,contact,comment,items_json,subtotal,discount,total,promo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
       ).bind(id, hash, name, phone, city, contact, comment, JSON.stringify(stored), calc.subtotal, calc.discount, calc.total, calc.code),
-      env.DB.prepare('INSERT OR IGNORE INTO order_extra(order_id,payment_status,delivery_method,delivery_cost) VALUES(?,\'none\',\'\',0)').bind(id),
+      env.DB.prepare(
+        "INSERT OR IGNORE INTO order_extra(order_id,payment_status,delivery_method,delivery_cost,delivery_point_code,delivery_point_address,delivery_tariff) VALUES(?,'none',?,?,?,?,?)"
+      ).bind(id, delivery.method, delivery.cost, delivery.pointCode, delivery.pointAddress, delivery.tariff),
       env.DB.prepare("INSERT OR IGNORE INTO outbox(kind,chat_id,text,dedupe) SELECT 'owner',?,?,? WHERE EXISTS(SELECT 1 FROM orders WHERE id=? AND token_hash=?)").bind(
         String(env.TELEGRAM_CHAT_ID), ownerText(order), 'order-' + id, id, hash
       ),
@@ -363,7 +620,17 @@ async function createOrder(request, env, ctx) {
     if (!check || !equal(check.token_hash, hash)) return json({ error: 'Этот заказ уже существует.' }, 409, corsHeaders(origin));
 
     ctx.waitUntil(flush(env).catch(() => {}));
-    return json({ ok: true, id: check.id, total: check.total, bot: validBot(env) ? botname(env) : null }, 200, corsHeaders(origin));
+    return json(
+      {
+        ok: true,
+        id: check.id,
+        total: check.total,
+        bot: validBot(env) ? botname(env) : null,
+        delivery: { method: delivery.method, cost: delivery.cost, pointAddress: delivery.pointAddress, periodMin: delivery.periodMin, periodMax: delivery.periodMax }
+      },
+      200,
+      corsHeaders(origin)
+    );
   } catch (e) {
     const msg = String(e && e.message ? e.message : e);
     if (/SQLITE|D1_|database|no such table/i.test(msg)) {
@@ -445,7 +712,11 @@ function orderOut(row, items, extra, comments) {
     claimedAt: row.claimed_at || null,
     paymentStatus: (extra && extra.payment_status) || 'none',
     deliveryMethod: (extra && extra.delivery_method) || '',
+    deliveryLabel: deliveryLabel((extra && extra.delivery_method) || ''),
     deliveryCost: extra ? extra.delivery_cost || 0 : 0,
+    deliveryPointCode: (extra && extra.delivery_point_code) || '',
+    deliveryPointAddress: (extra && extra.delivery_point_address) || '',
+    deliveryTariff: (extra && extra.delivery_tariff) || '',
     archived: extra ? !!extra.archived : false,
     updatedAt: extra ? extra.updated_at : null,
     comments: comments || []
@@ -454,7 +725,7 @@ function orderOut(row, items, extra, comments) {
 
 async function loadComments(env, orderId) {
   const { results } = await env.DB
-    .prepare('SELECT id,body,author,channel,sent_to_customer,created_at FROM order_comments WHERE order_id=? ORDER BY id')
+    .prepare('SELECT id,body,author,channel,sent_to_customer,created_at,kind,file_id,file_name FROM order_comments WHERE order_id=? ORDER BY id')
     .bind(orderId)
     .all();
   return (results || []).map((r) => ({
@@ -463,6 +734,9 @@ async function loadComments(env, orderId) {
     author: r.author,
     channel: r.channel,
     sent: !!r.sent_to_customer,
+    kind: r.kind || 'text',
+    fileId: r.file_id || '',
+    fileName: r.file_name || '',
     createdAt: r.created_at
   }));
 }
@@ -551,8 +825,11 @@ const PRODUCT_COLUMNS = [
 ];
 
 function productRowFromInput(input, existing) {
-  /* сначала поле из запроса (в любом написании: old_price / oldPrice),
-     затем значение из базы, затем значение по умолчанию */
+  /* значение берём в таком порядке: поле из запроса (в любом написании:
+     old_price / oldPrice) → значение из базы → значение по умолчанию.
+     Раньше camelCase из кабинета игнорировался, если в базе уже было
+     snake_case-поле, — из-за этого не применялись старая цена, полное
+     название, подпись типа, примечание о доставке и кросс-продажа. */
   const g = (k, d = '', alt) => {
     if (input[k] != null) return input[k];
     if (alt && input[alt] != null) return input[alt];
@@ -561,10 +838,11 @@ function productRowFromInput(input, existing) {
   };
   const id = clean(String(g('id', '')), 60).toLowerCase().replace(/[^a-z0-9-]/g, '-');
   const name = clean(String(g('name', '')), 120);
+  /* у нового товара страница создаётся сама: <id>.html */
   const page = clean(String(g('page', '')), 80) || (id ? id + '.html' : '');
   return {
     id,
-    page: clean(String(g('page', '')), 80),
+    page,
     sku: clean(String(g('sku', '')), 60),
     name,
     full_name: clean(String(g('full_name', name, 'fullName')), 160),
@@ -618,6 +896,52 @@ async function upsertProduct(env, p) {
     .run();
 }
 
+/* загрузка файла в Telegram: файл уходит боту покупателей, обратно приходит file_id */
+async function telegramUpload(env, token, method, fields, file) {
+  const form = new FormData();
+  Object.keys(fields).forEach((k) => {
+    if (fields[k] != null && fields[k] !== '') form.append(k, String(fields[k]));
+  });
+  const name = file.name || (file.type && file.type.startsWith('image/') ? 'photo.jpg' : 'file.bin');
+  form.append(method === 'sendPhoto' ? 'photo' : 'document', file, name);
+  const r = await fetch('https://api.telegram.org/bot' + token + '/' + method, {
+    method: 'POST',
+    body: form
+  });
+  const d = await r.json().catch(() => null);
+  if (!r.ok || !d || !d.ok) {
+    throw new Error('TELEGRAM_UPLOAD_' + (r.status || 'ERROR') + (d && d.description ? ': ' + d.description : ''));
+  }
+  const m = d.result;
+  const doc = m.photo ? m.photo[m.photo.length - 1] : m.document || m.video || m.audio || {};
+  return { fileId: doc.file_id || '', fileName: (m.document && m.document.file_name) || name };
+}
+
+/* прокси для показа вложений в кабинете: file_id → файл (только с токеном админа) */
+async function serveTelegramFile(env, rawId, token) {
+  if (!token || !(await tokenValid(env, token))) return new Response('Unauthorized', { status: 401 });
+  const owner = String(rawId).startsWith('o:');
+  const fileId = String(rawId).replace(/^[co]:/, '');
+  const botToken = owner ? env.TELEGRAM_BOT_TOKEN : env.CUSTOMER_BOT_TOKEN;
+  if (!botToken) return new Response('Not configured', { status: 503 });
+  const info = await telegram(botToken, 'getFile', { file_id: fileId }).catch(() => null);
+  if (!info || !info.file_path) return new Response('Not found', { status: 404 });
+  const r = await fetch('https://api.telegram.org/file/bot' + botToken + '/' + info.file_path);
+  if (!r.ok) return new Response('Not found', { status: 404 });
+  const type = /\.(jpg|jpeg)$/i.test(info.file_path)
+    ? 'image/jpeg'
+    : /\.png$/i.test(info.file_path)
+      ? 'image/png'
+      : /\.webp$/i.test(info.file_path)
+        ? 'image/webp'
+        : /\.pdf$/i.test(info.file_path)
+          ? 'application/pdf'
+          : 'application/octet-stream';
+  return new Response(r.body, {
+    headers: { 'content-type': type, 'cache-control': 'private, max-age=3600', 'content-disposition': 'inline' }
+  });
+}
+
 /* уведомление покупателю по заказу */
 async function notifyCustomer(env, order, text) {
   if (!order.customer_chat_id) return false;
@@ -629,7 +953,9 @@ function statusMessage(order, extra) {
   const num = order.id.slice(0, 8).toUpperCase();
   const lines = [`📦 Заказ № ${num}`, `Статус: ${STATUSES[order.status] || order.status}`];
   if (order.tracking) lines.push(`Трек-номер: ${order.tracking}`);
-  if (extra && extra.delivery_method) lines.push(`Доставка: ${extra.delivery_method}`);
+  if (extra && extra.delivery_method) lines.push(`Доставка: ${deliveryLabel(extra.delivery_method)}`);
+  if (extra && extra.delivery_point_address) lines.push(`Адрес: ${extra.delivery_point_address}`);
+  if (extra && Number(extra.delivery_cost)) lines.push(`Стоимость доставки: ${money(extra.delivery_cost)}`);
   lines.push('', 'Откройте «Мои заказы» в боте, чтобы посмотреть подробности.');
   return lines.join('\n');
 }
@@ -638,6 +964,7 @@ function statusMessage(order, extra) {
 async function adminApi(request, env, ctx, url) {
   const path = url.pathname.replace(/^\/admin\/api/, '') || '/';
   const method = request.method;
+  await ensureSchema(env);
 
   /* --- вход --- */
   if (path === '/login' && method === 'POST') {
@@ -774,6 +1101,8 @@ async function adminApi(request, env, ctx, url) {
     const payment = PAYMENTS[b.paymentStatus] ? b.paymentStatus : extra.payment_status || 'none';
     const deliveryMethod = b.deliveryMethod != null ? clean(b.deliveryMethod, 120) : extra.delivery_method || '';
     const deliveryCost = b.deliveryCost != null ? int(b.deliveryCost, 0, 0, 100000) : extra.delivery_cost || 0;
+    const pointAddress = b.deliveryPointAddress != null ? clean(b.deliveryPointAddress, 240) : extra.delivery_point_address || '';
+    const pointCode = b.deliveryPointCode != null ? clean(b.deliveryPointCode, 40) : extra.delivery_point_code || '';
 
     const customer = b.customer || {};
     const name = customer.name != null ? clean(customer.name, 100) : row.customer_name;
@@ -791,10 +1120,12 @@ async function adminApi(request, env, ctx, url) {
         .bind(status, tracking, note, name, phone, city, contact, comment, id),
       env.DB
         .prepare(
-          'INSERT INTO order_extra(order_id,payment_status,delivery_method,delivery_cost,updated_at) VALUES(?,?,?,?,datetime(\'now\')) ' +
-          'ON CONFLICT(order_id) DO UPDATE SET payment_status=excluded.payment_status, delivery_method=excluded.delivery_method, delivery_cost=excluded.delivery_cost, updated_at=datetime(\'now\')'
+          'INSERT INTO order_extra(order_id,payment_status,delivery_method,delivery_cost,delivery_point_code,delivery_point_address,updated_at) VALUES(?,?,?,?,?,?,datetime(\'now\')) ' +
+          'ON CONFLICT(order_id) DO UPDATE SET payment_status=excluded.payment_status, delivery_method=excluded.delivery_method, ' +
+          'delivery_cost=excluded.delivery_cost, delivery_point_code=excluded.delivery_point_code, ' +
+          'delivery_point_address=excluded.delivery_point_address, updated_at=datetime(\'now\')'
         )
-        .bind(id, payment, deliveryMethod, deliveryCost)
+        .bind(id, payment, deliveryMethod, deliveryCost, pointCode, pointAddress)
     ];
 
     /* возврат остатков при отмене и списание при возврате в работу */
@@ -878,27 +1209,76 @@ async function adminApi(request, env, ctx, url) {
     return adminJson({ ok: true, order: orderOut(fresh, await orderItems(env, id, fresh.items_json), extra, await loadComments(env, id)) });
   }
 
-  /* --- комментарий --- */
+  /* --- комментарий (текст и/или файл: фото, чек, документ) --- */
   m = path.match(/^\/orders\/([a-f0-9]{32})\/comments$/);
   if (m && method === 'POST') {
     const id = m[1];
     const row = await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(id).first();
     if (!row) return adminJson({ error: 'Заказ не найден.' }, 404);
-    const b = await parseBody(request);
-    const body = clean(String(b.body || ''), 1500);
-    if (body.length < 1) return adminJson({ error: 'Введите текст комментария.' }, 400);
-    const notify = b.notify !== false;
+    await ensureSchema(env);
+
+    const ctype = (request.headers.get('content-type') || '').toLowerCase();
+    let body = '';
+    let notify = true;
+    let file = null;
+    if (ctype.startsWith('multipart/form-data')) {
+      const fd = await request.formData();
+      body = clean(String(fd.get('body') || ''), 1500);
+      notify = String(fd.get('notify') || 'true') !== 'false';
+      const f = fd.get('file');
+      if (f && typeof f === 'object' && Number(f.size) > 0) file = f;
+    } else {
+      const b = await parseBody(request);
+      body = clean(String(b.body || ''), 1500);
+      notify = b.notify !== false;
+    }
+    if (!body && !file) return adminJson({ error: 'Введите текст или прикрепите файл.' }, 400);
+    if (file && Number(file.size) > 20 * 1024 * 1024) {
+      return adminJson({ error: 'Файл больше 20 МБ — Telegram такой не примет.' }, 400);
+    }
+
+    const num = id.slice(0, 8).toUpperCase();
+    let kind = 'text';
+    let fileId = '';
+    let fileName = '';
     let sent = false;
-    await env.DB
-      .prepare('INSERT INTO order_comments(order_id,body,author,channel,sent_to_customer) VALUES(?,?,?,?,?)')
-      .bind(id, body, 'продавец', 'seller', notify && row.customer_chat_id ? 1 : 0)
-      .run();
-    if (notify && row.customer_chat_id) {
-      const num = id.slice(0, 8).toUpperCase();
+
+    if (file) {
+      kind = String(file.type || '').startsWith('image/') ? 'photo' : 'document';
+      fileName = clean(String(file.name || ''), 120);
+      const method = kind === 'photo' ? 'sendPhoto' : 'sendDocument';
+      try {
+        if (notify && row.customer_chat_id) {
+          /* отправляем покупателю в бот покупателей */
+          const up = await telegramUpload(env, env.CUSTOMER_BOT_TOKEN, method, {
+            chat_id: row.customer_chat_id,
+            caption: body || ''
+          }, file);
+          fileId = 'c:' + up.fileId;
+          sent = true;
+        } else {
+          /* покупатель не в боте — складываем файл в чат владельца, чтобы он был в карточке */
+          const up = await telegramUpload(env, env.TELEGRAM_BOT_TOKEN, method, {
+            chat_id: String(env.TELEGRAM_CHAT_ID),
+            caption: `Заказ № ${num}: ${body || fileName}`
+          }, file);
+          fileId = 'o:' + up.fileId;
+          sent = false;
+        }
+      } catch (e) {
+        return adminJson({ error: 'Не удалось отправить файл: ' + String(e.message || e) }, 502);
+      }
+    } else if (notify && row.customer_chat_id) {
       await enqueue(env.DB, 'customer', row.customer_chat_id, `💬 Сообщение по заказу № ${num}\n\n${body}`);
       sent = true;
-      ctx.waitUntil(flush(env).catch(() => {}));
     }
+
+    await env.DB
+      .prepare('INSERT INTO order_comments(order_id,body,author,channel,sent_to_customer,kind,file_id,file_name) VALUES(?,?,?,?,?,?,?,?)')
+      .bind(id, body || (kind === 'photo' ? 'Фото' : 'Документ'), 'продавец', 'seller', sent ? 1 : 0, kind, fileId, fileName)
+      .run();
+
+    if (sent) ctx.waitUntil(flush(env).catch(() => {}));
     return adminJson({ ok: true, sent, comments: await loadComments(env, id) });
   }
 
@@ -1199,38 +1579,280 @@ const secureHeaders = {
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
 };
 
-/* ============================ вебхук бота покупателей ============================ */
-async function sendBot(env, chatId, text) {
-  return telegram(env.CUSTOMER_BOT_TOKEN, 'sendMessage', { chat_id: chatId, text, disable_web_page_preview: true });
+/* ============================ бот покупателей ============================
+   Возможности:
+     /start <код>  — привязать заказ (код приходит ссылкой с сайта)
+     /menu         — главное меню (inline-кнопки)
+     /orders       — список заказов, каждый открывается карточкой
+     /status       — карточка активного заказа
+     /catalog      — каталог с ценами и наличием
+     /help         — как всё работает
+   Любое сообщение (текст, фото, документ) уходит в выбранный заказ,
+   продавец видит его в карточке заказа и получает уведомление.
+   ======================================================================= */
+const BOT_COMMANDS = [
+  { command: 'start', description: 'Запустить и привязать заказ' },
+  { command: 'menu', description: 'Главное меню' },
+  { command: 'orders', description: 'Мои заказы' },
+  { command: 'status', description: 'Статус активного заказа' },
+  { command: 'catalog', description: 'Каталог и цены' },
+  { command: 'help', description: 'Помощь и доставка' }
+];
+const MENU_KEYBOARD = [
+  [{ text: '📦 Мои заказы', callback_data: 'menu:orders' }, { text: '🚚 Активный заказ', callback_data: 'menu:active' }],
+  [{ text: '🕯 Каталог', callback_data: 'menu:catalog' }, { text: '❓ Помощь', callback_data: 'menu:help' }]
+];
+
+const fmtDate = (v) => {
+  try {
+    return new Date(String(v).replace(' ', 'T') + (String(v).includes('Z') ? '' : 'Z')).toLocaleDateString('ru-RU', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    });
+  } catch (e) {
+    return String(v || '');
+  }
+};
+
+/* одноразовая настройка меню команд в Telegram */
+let botMenuReady = false;
+async function setupBot(env) {
+  if (botMenuReady || !env.CUSTOMER_BOT_TOKEN) return;
+  botMenuReady = true;
+  try {
+    await telegram(env.CUSTOMER_BOT_TOKEN, 'setMyCommands', { commands: BOT_COMMANDS });
+    await telegram(env.CUSTOMER_BOT_TOKEN, 'setChatMenuButton', { menu_button: { type: 'commands' } });
+  } catch (e) {
+    botMenuReady = false; /* попробуем в следующий раз */
+  }
 }
 
-async function customerMenu(env, chatId, view, ctx) {
-  const rows = await env.DB.prepare('SELECT id,status,total,tracking,created_at FROM orders WHERE customer_chat_id=? ORDER BY created_at DESC LIMIT 10').bind(chatId).all();
-  const orders = rows.results || [];
-  if (view === 'orders' || view === 'home') {
-    if (!orders.length) {
-      return sendBot(env, chatId, 'У вас пока нет привязанных заказов.\n\nПосле оформления на сайте нажмите «Отслеживать заказ в Telegram».');
-    }
-    const lines = ['🧾 Ваши заказы:', ''];
-    orders.forEach((o) => {
-      lines.push(`№ ${o.id.slice(0, 8).toUpperCase()} · ${new Date(o.created_at + 'Z').toLocaleDateString('ru-RU')}`);
-      lines.push(`Статус: ${STATUSES[o.status] || o.status} · ${money(o.total)}`);
-      if (o.tracking) lines.push(`Трек: ${o.tracking}`);
-      lines.push('');
-    });
-    lines.push('Вопросы — просто напишите сюда, продавец увидит сообщение.');
-    return sendBot(env, chatId, lines.join('\n'));
+async function botSend(env, chatId, text, keyboard) {
+  const payload = { chat_id: chatId, text, disable_web_page_preview: true };
+  if (keyboard) payload.reply_markup = { inline_keyboard: keyboard };
+  /* ошибка Telegram не должна ломать работу бота: данные уже сохранены */
+  try {
+    return await telegram(env.CUSTOMER_BOT_TOKEN, 'sendMessage', payload);
+  } catch (e) {
+    console.error('BOT_SEND_ERROR', String(e && e.message ? e.message : e));
+    return null;
   }
-  if (view === 'catalog') {
-    const { results } = await env.DB.prepare('SELECT name,price,stock FROM products WHERE active=1 ORDER BY sort').all();
-    const lines = ['🕯 Каталог:', ''];
-    (results || []).forEach((p) => {
-      lines.push(`${p.name} — ${money(p.price)}${p.stock > 0 ? '' : ' (нет в наличии)'}`);
-    });
-    lines.push('', 'Заказ на сайте: нажмите ссылку в описании канала.');
-    return sendBot(env, chatId, lines.join('\n'));
+}
+
+async function botOrderRow(env, chatId, orderId) {
+  return env.DB
+    .prepare(
+      `SELECT o.*, e.payment_status, e.delivery_method, e.delivery_cost, e.delivery_point_address
+         FROM orders o LEFT JOIN order_extra e ON e.order_id=o.id
+        WHERE o.id=? AND o.customer_chat_id=?`
+    )
+    .bind(orderId, chatId)
+    .first();
+}
+
+async function botOrderCard(env, chatId, orderId) {
+  const o = await botOrderRow(env, chatId, orderId);
+  if (!o) return botSend(env, chatId, 'Заказ не найден или привязан к другому аккаунту.', MENU_KEYBOARD);
+  const items = await orderItems(env, o.id, o.items_json);
+  const num = o.id.slice(0, 8).toUpperCase();
+  const lines = ['📦 Заказ № ' + num, 'Оформлен: ' + fmtDate(o.created_at), ''];
+  lines.push('Статус: ' + (STATUSES[o.status] || o.status));
+  lines.push('');
+  items.forEach((it) => lines.push('· ' + it.name + ' × ' + it.qty + ' — ' + money(it.price * it.qty)));
+  if (Number(o.discount)) lines.push('Скидка' + (o.promo ? ' (' + o.promo + ')' : '') + ': −' + money(o.discount));
+  lines.push('Товары: ' + money(o.total));
+  const dm = o.delivery_method || '';
+  if (dm && dm !== 'discuss') {
+    lines.push(
+      'Доставка: ' + deliveryLabel(dm) +
+      (o.delivery_point_address ? '\nАдрес: ' + o.delivery_point_address : '') +
+      (Number(o.delivery_cost) ? '\nСтоимость: ' + money(o.delivery_cost) : '')
+    );
+    lines.push('Итого с доставкой: ' + money(Number(o.total) + Number(o.delivery_cost || 0)));
   }
-  return sendBot(env, chatId, 'Привет! Здесь приходят статусы ваших заказов.');
+  if (o.payment_status === 'paid') lines.push('Оплата: получена');
+  if (o.tracking) lines.push('Трек-номер: ' + o.tracking);
+  lines.push('', 'Напишите сообщение сюда — оно попадёт продавцу в этот заказ, можно приложить фото или чек.');
+
+  const active = await getActive(env, chatId);
+  const kb = [];
+  if (active !== o.id) kb.push([{ text: '💬 Выбрать для переписки', callback_data: 'chat:' + o.id }]);
+  else kb.push([{ text: '✅ Это активный заказ', callback_data: 'chat:' + o.id }]);
+  kb.push([{ text: '🔄 Обновить', callback_data: 'o:' + o.id }, { text: '📦 Все заказы', callback_data: 'menu:orders' }]);
+  return botSend(env, chatId, lines.join('\n'), kb);
+}
+
+async function botOrders(env, chatId) {
+  const rows = await env.DB
+    .prepare(
+      `SELECT o.id,o.status,o.total,o.created_at,e.delivery_cost
+         FROM orders o LEFT JOIN order_extra e ON e.order_id=o.id
+        WHERE o.customer_chat_id=? ORDER BY o.created_at DESC LIMIT 12`
+    )
+    .bind(chatId)
+    .all();
+  const list = rows.results || [];
+  if (!list.length) {
+    return botSend(
+      env,
+      chatId,
+      'У вас пока нет привязанных заказов.\n\nОформите заказ на сайте — после оформления появится кнопка «Открыть бота», она привяжет заказ к этому чату автоматически.',
+      [[{ text: '🕯 Каталог', callback_data: 'menu:catalog' }]]
+    );
+  }
+  const active = await getActive(env, chatId);
+  const kb = list.map((o) => {
+    const mark = o.id === active ? '✅ ' : '';
+    const sum = Number(o.total) + Number(o.delivery_cost || 0);
+    return [
+      {
+        text: mark + '№ ' + o.id.slice(0, 8).toUpperCase() + ' · ' + (STATUSES[o.status] || o.status) + ' · ' + money(sum),
+        callback_data: 'o:' + o.id
+      }
+    ];
+  });
+  kb.push([{ text: '❓ Помощь', callback_data: 'menu:help' }]);
+  return botSend(env, chatId, '🧾 Ваши заказы: ' + list.length + '\n\nВыберите заказ — покажу состав, доставку и статус.', kb);
+}
+
+async function botActive(env, chatId) {
+  const id = await getActive(env, chatId);
+  if (id) return botOrderCard(env, chatId, id);
+  const last = await env.DB
+    .prepare('SELECT id FROM orders WHERE customer_chat_id=? ORDER BY created_at DESC LIMIT 1')
+    .bind(chatId)
+    .first();
+  if (last) {
+    await setActive(env, chatId, last.id);
+    return botOrderCard(env, chatId, last.id);
+  }
+  return botSend(env, chatId, 'Активного заказа нет. Откройте «Мои заказы» и выберите нужный.', MENU_KEYBOARD);
+}
+
+async function botCatalog(env, chatId) {
+  const { results } = await env.DB.prepare('SELECT name,price,old_price,stock,type_label FROM products WHERE active=1 ORDER BY sort, name').all();
+  const list = results || [];
+  const lines = ['🕯 Каталог RULES', ''];
+  list.forEach((p) => {
+    const old = Number(p.old_price) > Number(p.price) ? ' (было ' + money(p.old_price) + ')' : '';
+    lines.push(`${p.name} — ${money(p.price)}${old}${Number(p.stock) > 0 ? '' : ' · нет в наличии'}`);
+  });
+  lines.push('', 'Заказать — на сайте, кнопка «Каталог» в сообщении выше.');
+  return botSend(env, chatId, lines.join('\n'), [
+    [{ text: '🌐 Открыть сайт', url: String(env.ALLOWED_ORIGIN || 'https://antonryasov.github.io') }],
+    [{ text: '⬅️ В меню', callback_data: 'menu:home' }]
+  ]);
+}
+
+async function botHelp(env, chatId) {
+  const text = [
+    '❓ Помощь',
+    '',
+    'Как отслеживать заказ:',
+    '1. Оформите заказ на сайте.',
+    '2. Нажмите «Открыть бота» — заказ привяжется к этому чату.',
+    '3. Дальше все статусы приходят сюда автоматически.',
+    '',
+    'Что можно здесь:',
+    '· /orders — список заказов, состав, доставка, трек-номер;',
+    '· выбрать заказ и написать продавцу — сообщение попадёт в карточку заказа;',
+    '· приложить фото или документ (чек об оплате) — продавец увидит его в заказе.',
+    '',
+    'Доставка: СДЭК до пункта выдачи или курьером, срок и стоимость считаются при оформлении.',
+    'Оплата: после подтверждения заказа продавец присылает реквизиты.',
+    '',
+    `Сайт: ${String(env.ALLOWED_ORIGIN || 'https://antonryasov.github.io')}`
+  ].join('\n');
+  return botSend(env, chatId, text, MENU_KEYBOARD);
+}
+
+async function botHome(env, chatId, firstName) {
+  const rows = await env.DB
+    .prepare('SELECT id,status,total FROM orders WHERE customer_chat_id=? ORDER BY created_at DESC LIMIT 3')
+    .bind(chatId)
+    .all();
+  const list = rows.results || [];
+  const lines = [
+    'Здравствуйте' + (firstName ? ', ' + firstName : '') + '! Это бот RULES 🕯',
+    '',
+    'Здесь всё про ваши заказы: статусы, доставка, переписка с продавцом.'
+  ];
+  if (list.length) {
+    lines.push('', 'Последние заказы:');
+    list.forEach((o) => lines.push('№ ' + o.id.slice(0, 8).toUpperCase() + ' · ' + (STATUSES[o.status] || o.status) + ' · ' + money(o.total)));
+  } else {
+    lines.push('', 'Пока заказов нет. Оформите первый на сайте — и возвращайтесь сюда за статусами.');
+  }
+  lines.push('', 'Выберите раздел в меню ниже.');
+  return botSend(env, chatId, lines.join('\n'), MENU_KEYBOARD);
+}
+
+async function setActive(env, chatId, orderId) {
+  await env.DB
+    .prepare(
+      "INSERT INTO bot_state(chat_id,active_order_id,updated_at) VALUES(?,?,datetime('now')) " +
+        'ON CONFLICT(chat_id) DO UPDATE SET active_order_id=excluded.active_order_id, updated_at=datetime(\'now\')'
+    )
+    .bind(chatId, orderId)
+    .run();
+}
+async function getActive(env, chatId) {
+  const r = await env.DB.prepare('SELECT active_order_id FROM bot_state WHERE chat_id=?').bind(chatId).first();
+  return (r && r.active_order_id) || '';
+}
+
+/* привязка заказа по коду из ссылки */
+async function bindOrder(env, chatId, token) {
+  const hash = await digest(token);
+  const o = await env.DB
+    .prepare(
+      "UPDATE orders SET customer_chat_id=?, claimed_at=COALESCE(claimed_at,datetime('now')) " +
+        'WHERE token_hash=? AND (customer_chat_id=? OR (customer_chat_id IS NULL AND created_at>=datetime(\'now\',\'-14 days\'))) ' +
+        'RETURNING id,status,total'
+    )
+    .bind(chatId, hash, chatId)
+    .first();
+  if (!o) {
+    return { ok: false };
+  }
+  await env.DB.prepare('INSERT OR IGNORE INTO subscribers(chat_id,subscribed) VALUES(?,1)').bind(chatId).run();
+  await setActive(env, chatId, o.id);
+  return { ok: true, id: o.id, status: o.status, total: o.total };
+}
+
+/* сообщение покупателя (текст и/или файл) → в карточку заказа */
+async function customerMessage(env, chatId, opts) {
+  const text = clean(opts.text || '', 1500);
+  const kind = opts.kind || 'text';
+  const orderId = opts.orderId || (await getActive(env, chatId));
+  if (!orderId) {
+    return botSend(
+      env,
+      chatId,
+      'Сначала выберите заказ, к которому относится сообщение: /orders → нужный заказ → «Выбрать для переписки».',
+      MENU_KEYBOARD
+    );
+  }
+  const o = await botOrderRow(env, chatId, orderId);
+  if (!o) return botSend(env, chatId, 'Заказ не найден. Откройте /orders.', MENU_KEYBOARD);
+
+  const label = kind === 'photo' ? 'фото' : kind === 'document' ? 'документ' : 'сообщение';
+  const body = text || (kind === 'photo' ? 'Фото' : kind === 'document' ? 'Документ' : '');
+  await env.DB
+    .prepare('INSERT INTO order_comments(order_id,body,author,channel,sent_to_customer,kind,file_id,file_name) VALUES(?,?,?,?,0,?,?,?)')
+    .bind(orderId, body, 'покупатель', 'customer', kind, clean(opts.fileId || '', 200), clean(opts.fileName || '', 120))
+    .run();
+  await enqueue(
+    env.DB,
+    'owner',
+    String(env.TELEGRAM_CHAT_ID),
+    `💬 Покупатель прислал ${label} по заказу № ${orderId.slice(0, 8).toUpperCase()}\n\n${text || '(без текста)'}\n\nОтветить: личный кабинет → Заказы → этот заказ`
+  );
+  return botSend(
+    env,
+    chatId,
+    '✅ Передал продавцу в заказ № ' + orderId.slice(0, 8).toUpperCase() + '. Ответ придёт сюда.',
+    [[{ text: '📦 Мои заказы', callback_data: 'menu:orders' }]]
+  );
 }
 
 async function webhook(request, env, ctx) {
@@ -1240,6 +1862,8 @@ async function webhook(request, env, ctx) {
     return new Response('Forbidden', { status: 403 });
   }
   try {
+    await ensureSchema(env);
+    ctx.waitUntil(setupBot(env).catch(() => {}));
     const u = await request.json();
     const msg = u.message;
     const cb = u.callback_query;
@@ -1247,58 +1871,112 @@ async function webhook(request, env, ctx) {
     if (!chat || chat.type !== 'private') return new Response('OK');
     const chatId = String(chat.id);
 
+    /* --- нажатия на кнопки --- */
     if (cb) {
       if (!cb.from || String(cb.from.id) !== chatId) return new Response('OK');
       ctx.waitUntil(telegram(env.CUSTOMER_BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {}));
-      await customerMenu(env, chatId, String(cb.data || 'home'), ctx);
-      return new Response('OK');
-    }
-
-    const text = String((msg && msg.text) || '').trim();
-    const start = text.match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+([A-Za-z0-9_-]{32}))?$/);
-    if (start && start[1]) {
-      const hash = await digest(start[1]);
-      const o = await env.DB
-        .prepare(
-          "UPDATE orders SET customer_chat_id=?, claimed_at=COALESCE(claimed_at,datetime('now')) WHERE token_hash=? AND (customer_chat_id=? OR (customer_chat_id IS NULL AND created_at>=datetime('now','-14 days'))) RETURNING id,status,total"
-        )
-        .bind(chatId, hash, chatId)
-        .first();
-      if (o) {
-        await env.DB.prepare('INSERT OR IGNORE INTO subscribers(chat_id,subscribed) VALUES(?,1)').bind(chatId).run();
-        await sendBot(
+      const data = String(cb.data || 'menu:home');
+      if (data === 'menu:orders') { await botOrders(env, chatId); return new Response('OK'); }
+      if (data === 'menu:active') { await botActive(env, chatId); return new Response('OK'); }
+      if (data === 'menu:catalog') { await botCatalog(env, chatId); return new Response('OK'); }
+      if (data === 'menu:help') { await botHelp(env, chatId); return new Response('OK'); }
+      if (data === 'menu:home') { await botHome(env, chatId); return new Response('OK'); }
+      if (data.startsWith('o:')) { await botOrderCard(env, chatId, data.slice(2)); return new Response('OK'); }
+      if (data.startsWith('chat:')) {
+        const id = data.slice(5);
+        const o = await botOrderRow(env, chatId, id);
+        if (!o) { await botSend(env, chatId, 'Заказ не найден.', MENU_KEYBOARD); return new Response('OK'); }
+        await setActive(env, chatId, id);
+        await botSend(
           env,
           chatId,
-          '✅ Заказ № ' + o.id.slice(0, 8).toUpperCase() + ' привязан.\nСтатус: ' + (STATUSES[o.status] || 'Уточняется') +
-          '.\n\nЗдесь вы будете получать статусы и сообщения от продавца.'
+          '💬 Теперь сообщения относятся к заказу № ' + id.slice(0, 8).toUpperCase() +
+            '.\nПишите текстом, прикладывайте фото или документ — всё попадёт продавцу в этот заказ.',
+          [[{ text: '📦 Карточка заказа', callback_data: 'o:' + id }, { text: '🧾 Все заказы', callback_data: 'menu:orders' }]]
+        );
+        return new Response('OK');
+      }
+      await botHome(env, chatId);
+      return new Response('OK');
+    }
+
+    /* --- привязка по коду из ссылки --- */
+    const text = String((msg && msg.text) || '').trim();
+    const start = text.match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+([A-Za-z0-9_-]{32}))?$/);
+    const bareCode = text.match(/^([A-Za-z0-9_-]{32})$/);
+    if ((start && start[1]) || bareCode) {
+      const token = (start && start[1]) || bareCode[1];
+      const res = await bindOrder(env, chatId, token);
+      if (res.ok) {
+        await botSend(
+          env,
+          chatId,
+          '✅ Заказ № ' + res.id.slice(0, 8).toUpperCase() + ' привязан.\nСтатус: ' + (STATUSES[res.status] || 'уточняется') +
+            '.\n\nТеперь все изменения статуса придут сюда, а сообщения отсюда попадут продавцу в этот заказ.'
         ).catch(() => {});
+        await botOrderCard(env, chatId, res.id);
       } else {
-        await sendBot(env, chatId, 'Ссылка недействительна или срок её действия истёк. Свяжитесь с продавцом.').catch(() => {});
+        await botSend(env, chatId, 'Не получилось привязать заказ: ссылка устарела (она живёт 14 дней) или заказ уже привязан к другому чату. Напишите продавцу на сайте.').catch(() => {});
       }
       return new Response('OK');
     }
 
-    if (text === '/orders' || text === 'Мои заказы') { await customerMenu(env, chatId, 'orders', ctx); return new Response('OK'); }
-    if (text === '/catalog' || text === 'Каталог') { await customerMenu(env, chatId, 'catalog', ctx); return new Response('OK'); }
+    if (start) { await botHome(env, chatId, msg.from && msg.from.first_name); return new Response('OK'); }
 
-    /* сообщение покупателя → в карточку заказа */
-    if (text) {
-      const last = await env.DB
-        .prepare('SELECT id FROM orders WHERE customer_chat_id=? ORDER BY created_at DESC LIMIT 1')
-        .bind(chatId)
-        .first();
-      if (last) {
-        await env.DB
-          .prepare("INSERT INTO order_comments(order_id,body,author,channel,sent_to_customer) VALUES(?,?,?,?,0)")
-          .bind(last.id, clean(text, 1500), 'покупатель', 'customer')
-          .run();
-        await enqueue(env.DB, 'owner', String(env.TELEGRAM_CHAT_ID), `💬 Сообщение от покупателя по заказу № ${last.id.slice(0, 8).toUpperCase()}\n\n${clean(text, 1000)}`);
-        ctx.waitUntil(flush(env).catch(() => {}));
-      }
+    const lower = text.toLowerCase();
+    if (text === '/menu' || lower === 'меню' || text === '🏠 Меню') { await botHome(env, chatId, msg.from && msg.from.first_name); return new Response('OK'); }
+    if (text === '/orders' || lower === 'мои заказы') { await botOrders(env, chatId); return new Response('OK'); }
+    if (text === '/status' || lower === 'статус') { await botActive(env, chatId); return new Response('OK'); }
+    if (text === '/catalog' || lower === 'каталог') { await botCatalog(env, chatId); return new Response('OK'); }
+    if (text === '/help' || lower === 'помощь') { await botHelp(env, chatId); return new Response('OK'); }
+
+    /* --- файл от покупателя --- */
+    const photo = msg && msg.photo && msg.photo.length ? msg.photo[msg.photo.length - 1] : null;
+    const doc = msg && msg.document;
+    if (photo || doc) {
+      await customerMessage(env, chatId, {
+        kind: photo ? 'photo' : 'document',
+        fileId: photo ? photo.file_id : doc.file_id,
+        fileName: doc ? String(doc.file_name || 'документ').slice(0, 120) : 'фото.jpg',
+        text: String((msg.caption || '')).slice(0, 1000)
+      });
+      return new Response('OK');
     }
-    await customerMenu(env, chatId, 'home', ctx);
+
+    /* --- обычный текст --- */
+    if (text) {
+      const active = await getActive(env, chatId);
+      if (!active) {
+        const list = await env.DB
+          .prepare('SELECT id FROM orders WHERE customer_chat_id=? ORDER BY created_at DESC LIMIT 2')
+          .bind(chatId)
+          .all();
+        const rows = list.results || [];
+        if (rows.length === 0) {
+          await botSend(env, chatId, 'У вас пока нет заказов, к которым можно привязать сообщение. Оформите заказ на сайте — или напишите продавцу через раздел «Контакты».', MENU_KEYBOARD);
+          return new Response('OK');
+        }
+        if (rows.length === 1) {
+          await setActive(env, chatId, rows[0].id);
+          await customerMessage(env, chatId, { text, orderId: rows[0].id });
+          return new Response('OK');
+        }
+        await botSend(
+          env,
+          chatId,
+          'К какому заказу относится сообщение? Выберите заказ, и я запомню его для переписки.',
+          (rows || []).map((r) => [{ text: '№ ' + r.id.slice(0, 8).toUpperCase(), callback_data: 'chat:' + r.id }])
+        );
+        return new Response('OK');
+      }
+      await customerMessage(env, chatId, { text });
+      return new Response('OK');
+    }
+
+    await botHome(env, chatId, msg && msg.from && msg.from.first_name);
     return new Response('OK');
   } catch (e) {
+    console.error('WEBHOOK_ERROR', String(e && e.stack ? e.stack : e));
     return new Response('OK');
   }
 }
@@ -1313,7 +1991,18 @@ export default {
       if (path === '/catalog') return await publicCatalog(env, request);
       if (path === '/order') return await createOrder(request, env, ctx);
       if (path === '/telegram') return await webhook(request, env, ctx);
+      if (path === '/delivery/config' || path === '/delivery/points' || path === '/delivery/calc') {
+        return await deliveryApi(request, env, url);
+      }
       if (path === '/admin' || path === '/admin/') {
+        /* Защита от частой ошибки: в Cloudflare вставили src/worker.js вместо
+           собранного dist/worker.js — тогда интерфейс кабинета не вшит. */
+        if (!ADMIN_HTML || ADMIN_HTML.indexOf('__ADMIN_HTML__') !== -1) {
+          return new Response(NOT_BUILT_HTML, {
+            status: 503,
+            headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }
+          });
+        }
         return new Response(ADMIN_HTML, {
           headers: {
             'content-type': 'text/html; charset=utf-8',
@@ -1322,6 +2011,10 @@ export default {
             'referrer-policy': 'no-referrer'
           }
         });
+      }
+      if (path === '/admin/api/file') {
+        /* показ вложения в кабинете: /admin/api/file?f=<file_id>&t=<токен сессии> */
+        return await serveTelegramFile(env, url.searchParams.get('f') || '', url.searchParams.get('t') || '');
       }
       if (path.startsWith('/admin/api/')) {
         if (request.method === 'OPTIONS') {
