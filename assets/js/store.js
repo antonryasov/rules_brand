@@ -57,6 +57,7 @@
       meta: p.meta || f.meta || {}
     };
     if (!out.fullName) out.fullName = out.name;
+    if (!out.page && out.id) out.page = out.id + '.html';
     if (!out.images.hero) out.images.hero = out.images.card;
     if (!out.images.card) out.images.card = out.images.hero;
     return out;
