@@ -281,9 +281,13 @@
 
   /* подарок по промокоду: отдельная строка в корзине */
   function giftLine(calc) {
-    if (!calc.gift) return '';
+    var cfg = S.promos[calc.code] || {};
+    var known = calc.gift || null;
+    var name = cfg.giftName || (known && (known.fullName || known.name)) || 'Подарок';
+    var desc = cfg.giftDesc || (known && (known.tagline || known.lead)) || '';
     return '<div class="shop-line shop-gift"><div>' +
-      '<div class="shop-line-name">Подарок: ' + escapeHtml(calc.gift.fullName || calc.gift.name) + '</div>' +
+      '<div class="shop-line-name">Подарок: ' + escapeHtml(name) + '</div>' +
+      (desc ? '<div class="shop-line-price">' + escapeHtml(desc) + '</div>' : '') +
       '<div class="shop-line-price">По промокоду ' + escapeHtml(calc.code) + ' · 1 шт. бесплатно</div>' +
       '</div><div><div class="shop-line-price" style="text-align:right">0 ₽</div></div></div>';
   }
@@ -313,7 +317,8 @@
         '</div><div class="shop-line-price" style="text-align:right">' + S.money(p.price * x.qty) + '</div></div></div>';
     }).join('');
 
-    if (calc.gift) itemsEl.insertAdjacentHTML('beforeend', giftLine(calc));
+    var giftCfg = (S.promos[calc.code] || {}).gift;
+    if (giftCfg) itemsEl.insertAdjacentHTML('beforeend', giftLine(calc));
 
     $('shop-subtotal').textContent = S.money(calc.subtotal);
     $('shop-discount').textContent = '− ' + S.money(calc.discount);
