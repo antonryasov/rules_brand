@@ -64,3 +64,6 @@
 #shop-delivery-cost{margin:0 0 4px;color:#c9dbcd}
 .shop-address.single #addr-city{grid-column:1/-1}
 .shop-address .shop-input.invalid:focus-visible{outline-color:#d4726a}
+.shop-line.shop-gift{border-left:2px solid #7fd2a1;padding-left:12px;margin-top:-1px}
+.shop-line.shop-gift .shop-line-name{color:#bfe9cd}
+.shop-line.shop-gift .shop-line-price{color:#8fce9f}
