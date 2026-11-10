@@ -78,6 +78,13 @@ const PROMOS = {
     minSum: 5000,
     gift: 'set-doroga',
     freeDelivery: true
+  },
+   "MAGICTOUCH": {
+    "label": "Подарок от студии массажа Магия Касания уже в корзине!",
+    "percent": 0,
+    "minSum": 5000,
+    "gift": "gift-magictouch",
+    "freeDelivery": true
   }
 };
 
