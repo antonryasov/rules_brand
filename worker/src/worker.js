@@ -68,6 +68,8 @@ const PROMOS = {
   TRIO12: { label: '12% при покупке от 3 товаров', percent: 12, minQty: 3 },
   NABOR5: { label: '5% на подарочные наборы', percent: 5, type: 'set' },
   BOLSHOY15: { label: '15% при сумме товаров от 8 000 ₽', percent: 15, minSum: 8000 },
+  RYASOVVIP: { label: 'Вся корзина за 0 ₽ и бесплатная доставка. Для своих🫂', percent: 100, minSum: 0 },
+  SVOY99: { label: 'Скидка 99% на все и бесплатная доставка. Для своих🫂', percent: 99, minSum: 0 },
   RYASOV300: { label: '300 ₽ при сумме товаров от 3 500 ₽', fixed: 300, minSum: 3500 }
 };
 
