@@ -8,3 +8,24 @@
 .shop-add:before,.shop-submit:before{background:#23754e}.shop-add:hover,.shop-submit:hover{color:#fff}
 @media(max-width:1150px){header.site nav{display:none}.burger{display:block}.shop-cart-toggle{margin-left:auto}}
 
+
+/* ---------- доставка СДЭК ---------- */
+.shop-delivery{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}
+.shop-radio{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;cursor:pointer}
+.shop-radio input{margin-top:3px;accent-color:#2e8b62}
+.shop-radio input:disabled+span{opacity:.45}
+.shop-pvz-list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto;margin-top:10px;padding-right:4px}
+.shop-pvz-item{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(239,234,224,.12);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;cursor:pointer;background:rgba(239,234,224,.02)}
+.shop-pvz-item:hover{border-color:rgba(46,139,98,.55)}
+.shop-pvz-item input{margin-top:3px;accent-color:#2e8b62}
+.shop-pvz-item i{color:#8e887e;font-style:normal;font-size:12px}
+#shop-find-pvz{margin-top:8px}
+
+/* ---------- экран «заказ принят» ---------- */
+.order-done{border:1px solid rgba(46,139,98,.4);background:rgba(13,85,57,.14);border-radius:16px;padding:18px 18px 16px;margin:4px 0 18px}
+.order-done-head{font-size:18px;letter-spacing:.02em;margin-bottom:8px;color:#efeae0}
+.order-done-text{font-size:14px;line-height:1.55;color:#cfc9be;margin:0 0 8px}
+.order-done-bot{margin-top:14px;border-top:1px solid rgba(239,234,224,.1);padding-top:14px}
+.order-done-bot-title{font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11px;color:#8fd3ae;margin-bottom:8px}
+.order-done-btn{display:inline-block;text-align:center;text-decoration:none;margin:6px 0 10px}
+.order-done-code{display:inline-block;margin-top:6px;padding:2px 6px;border-radius:6px;background:rgba(239,234,224,.1);font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all}
