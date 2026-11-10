@@ -551,9 +551,17 @@ const PRODUCT_COLUMNS = [
 ];
 
 function productRowFromInput(input, existing) {
-  const g = (k, d = '') => (input[k] != null ? input[k] : existing && existing[k] != null ? existing[k] : d);
+  /* сначала поле из запроса (в любом написании: old_price / oldPrice),
+     затем значение из базы, затем значение по умолчанию */
+  const g = (k, d = '', alt) => {
+    if (input[k] != null) return input[k];
+    if (alt && input[alt] != null) return input[alt];
+    if (existing && existing[k] != null) return existing[k];
+    return d;
+  };
   const id = clean(String(g('id', '')), 60).toLowerCase().replace(/[^a-z0-9-]/g, '-');
   const name = clean(String(g('name', '')), 120);
+  const page = clean(String(g('page', '')), 80) || (id ? id + '.html' : '');
   return {
     id,
     page: clean(String(g('page', '')), 80),
@@ -565,7 +573,7 @@ function productRowFromInput(input, existing) {
     family: clean(String(g('family', '')), 20),
     collection: clean(String(g('collection', '')), 60),
     price: int(g('price', 0), 0, 0, 10000000),
-    old_price: int(g('old_price', g('oldPrice', 0)), 0, 0, 10000000),
+    old_price: int(g('old_price', 0, 'oldPrice'), 0, 0, 10000000),
     stock: int(g('stock', 0), 0, 0, 100000),
     active: String(g('active', 1)) === '0' || String(g('active', 1)) === 'false' ? 0 : 1,
     badge: clean(String(g('badge', '')), 40),
