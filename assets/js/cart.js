@@ -73,6 +73,8 @@
 
   function deliveryCost() {
     var cfg = deliveryCfg();
+    /* промокод может давать бесплатную доставку любым способом */
+    if (S.calculate(items, promo).freeDelivery) return 0;
     if (delivery.method !== 'courier') return 0;
     if (!cfg.courierCost) return 0;
     var calc = S.calculate(items, promo);
@@ -85,9 +87,14 @@
     var calc = S.calculate(items, promo);
     delivery.cost = deliveryCost();
 
+    var free = !!calc.freeDelivery;
     var row = document.getElementById('shop-delivery-row');
     var grand = document.getElementById('shop-grand-row');
-    if (row && grand) {
+    if (row && grand && free) {
+      row.hidden = false;
+      grand.hidden = true;
+      document.getElementById('shop-delivery-sum').textContent = 'бесплатно';
+    } else if (row && grand) {
       if (delivery.cost > 0) {
         row.hidden = false; grand.hidden = false;
         document.getElementById('shop-delivery-sum').textContent = S.money(delivery.cost);
@@ -99,7 +106,9 @@
 
     var line = document.getElementById('shop-delivery-cost');
     if (line) {
-      if (delivery.method === 'courier') {
+      if (free) {
+        line.textContent = 'Доставка бесплатно по промокоду ' + calc.code + '.';
+      } else if (delivery.method === 'courier') {
         if (delivery.cost > 0) {
           line.textContent = 'Доставка курьером: ' + S.money(delivery.cost) +
             (cfg.freeFrom > 0 ? ' · бесплатно от ' + S.money(cfg.freeFrom) : '');
@@ -270,6 +279,15 @@
     return p.fullName || p.name || p.id;
   }
 
+  /* подарок по промокоду: отдельная строка в корзине */
+  function giftLine(calc) {
+    if (!calc.gift) return '';
+    return '<div class="shop-line shop-gift"><div>' +
+      '<div class="shop-line-name">Подарок: ' + escapeHtml(calc.gift.fullName || calc.gift.name) + '</div>' +
+      '<div class="shop-line-price">По промокоду ' + escapeHtml(calc.code) + ' · 1 шт. бесплатно</div>' +
+      '</div><div><div class="shop-line-price" style="text-align:right">0 ₽</div></div></div>';
+  }
+
   function render() {
     if (!overlay) return;
     var calc = S.calculate(items, promo);
@@ -294,6 +312,8 @@
           '<button type="button" class="shop-qty" data-delta="1" data-id="' + x.id + '" aria-label="Увеличить количество">+</button>' +
         '</div><div class="shop-line-price" style="text-align:right">' + S.money(p.price * x.qty) + '</div></div></div>';
     }).join('');
+
+    if (calc.gift) itemsEl.insertAdjacentHTML('beforeend', giftLine(calc));
 
     $('shop-subtotal').textContent = S.money(calc.subtotal);
     $('shop-discount').textContent = '− ' + S.money(calc.discount);
@@ -582,6 +602,12 @@
           '. Адрес пункта пришлём при подтверждении.';
       } else {
         dlvLine = 'Доставку и оплату согласуем с вами.';
+      }
+      if (data.gift) {
+        dlvLine += ' Подарок: ' + data.gift.name + ' — бесплатно.';
+      }
+      if (dlv && dlv.free) {
+        dlvLine += ' Доставка бесплатно по промокоду.';
       }
       var link = botOk ? 'https://t.me/' + data.bot + '?start=' + pending.token : '';
       success.innerHTML =

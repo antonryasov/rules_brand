@@ -57,6 +57,8 @@
       meta: p.meta || f.meta || {}
     };
     if (!out.fullName) out.fullName = out.name;
+    /* у товара, созданного в кабинете, может не быть поля page —
+       страница называется так же, как id */
     if (!out.page && out.id) out.page = out.id + '.html';
     if (!out.images.hero) out.images.hero = out.images.card;
     if (!out.images.card) out.images.card = out.images.hero;
@@ -105,8 +107,13 @@
   };
 
   S.productByPage = function (page) {
+    var slug = String(page || '').toLowerCase();
+    var wanted = slug.replace(/\.html$/, '');
     for (var i = 0; i < S.products.length; i++) {
-      if (S.products[i].page === page) return S.products[i];
+      var p = S.products[i];
+      if (p.page === slug) return p;
+      /* запасной вариант: страница = id.html */
+      if (String(p.id).toLowerCase() === wanted) return p;
     }
     return null;
   };
@@ -126,7 +133,9 @@
     return new Intl.NumberFormat('ru-RU').format(Math.round(n || 0)) + ' ₽';
   };
 
-  /* Промокоды: та же логика, что и на сервере */
+  /* Промокоды: та же логика, что и на сервере.
+     Кроме скидки промокод может давать подарок (gift: '<id товара>')
+     и бесплатную доставку (freeDelivery: true). */
   S.calculate = function (items, rawCode) {
     var subtotal = 0, quantity = 0;
     items.forEach(function (it) {
@@ -136,13 +145,21 @@
       quantity += it.qty;
     });
     var code = String(rawCode || '').trim().toUpperCase();
-    var empty = { subtotal: subtotal, quantity: quantity, discount: 0, total: subtotal, code: '', promoMessage: '' };
-    if (!code) return empty;
+    var base = {
+      subtotal: subtotal, quantity: quantity, discount: 0, total: subtotal,
+      code: '', promoMessage: '', gift: null, freeDelivery: false
+    };
+    function fail(message) {
+      return {
+        subtotal: subtotal, quantity: quantity, discount: 0, total: subtotal,
+        code: '', promoMessage: message, gift: null, freeDelivery: false
+      };
+    }
+    if (!code) return base;
     var p = S.promos[code];
-    if (!p) { empty.promoMessage = 'Промокод не найден.'; return empty; }
+    if (!p) return fail('Промокод не найден.');
     if ((p.minQty && quantity < p.minQty) || (p.minSum && subtotal < p.minSum)) {
-      empty.promoMessage = 'Условие не выполнено: ' + p.label + '.';
-      return empty;
+      return fail('Условие не выполнено: ' + p.label + '.');
     }
     var eligible = 0;
     items.forEach(function (it) {
@@ -152,8 +169,17 @@
         eligible += prod.price * it.qty;
       }
     });
-    if (!eligible) { empty.promoMessage = 'В корзине нет товаров, подходящих под этот промокод.'; return empty; }
-    var discount = Math.min(eligible, p.fixed || Math.round(eligible * p.percent / 100));
-    return { subtotal: subtotal, quantity: quantity, discount: discount, total: subtotal - discount, code: code, promoMessage: p.label };
+    if (!eligible) return fail('В корзине нет товаров, подходящих под этот промокод.');
+    var discount = Math.min(eligible, p.fixed || Math.round(eligible * (p.percent || 0) / 100));
+    return {
+      subtotal: subtotal,
+      quantity: quantity,
+      discount: discount,
+      total: subtotal - discount,
+      code: code,
+      promoMessage: p.label,
+      gift: p.gift ? (S.byId[p.gift] || null) : null,
+      freeDelivery: !!p.freeDelivery
+    };
   };
 })();
