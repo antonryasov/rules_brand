@@ -22,7 +22,7 @@
     "bone": "#efeae0",
     "ash": "#8e887e",
     "line": "rgba(239,234,224,.12)",
-    "emerald": "#315361",
+    "emerald": "#0d5539",
     "emerald2": "#4D8076",
     "ice": "#a9d8e8"
   },
@@ -33,6 +33,12 @@
   },
   "home": {
     "heroImage": "assets/img/hero.webp"
+  },
+  "delivery": {
+    "courierCost": 0,
+    "freeFrom": 0,
+    "pickupAddress": "",
+    "pickupNote": ""
   },
   "cart": {
     "maxQtyPerItem": 20,
