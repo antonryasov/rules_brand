@@ -39,12 +39,75 @@
   <div id="shop-items"></div>
   <div id="shop-content" hidden>
    <div class="shop-promo"><label class="shop-label" for="shop-code">Промокод</label><div class="shop-promo-row"><input class="shop-input" id="shop-code" maxlength="40" placeholder="Введите промокод" autocomplete="off"><button type="button" id="shop-apply" class="shop-action">Применить</button><button type="button" id="shop-clear-promo" class="shop-action" hidden aria-label="Удалить промокод">×</button></div><p class="shop-hint" id="shop-promo-hint" aria-live="polite">Один промокод на заказ; скидки не суммируются.</p></div>
-   <div class="shop-totals"><div class="shop-total-row"><span>Товары</span><span id="shop-subtotal"></span></div><div class="shop-total-row shop-discount"><span>Скидка</span><span id="shop-discount"></span></div><div class="shop-total-row final"><span>Итого за товары</span><span id="shop-total"></span></div><p class="shop-hint">Доставка рассчитывается отдельно. Оплата — после подтверждения заказа.</p></div>
+   <div class="shop-totals"><div class="shop-total-row"><span>Товары</span><span id="shop-subtotal"></span></div><div class="shop-total-row shop-discount"><span>Скидка</span><span id="shop-discount"></span></div><div class="shop-total-row final"><span>Итого за товары</span><span id="shop-total"></span></div><div class="shop-total-row" id="shop-delivery-row" hidden><span>Доставка</span><span id="shop-delivery-sum"></span></div><div class="shop-total-row final" id="shop-grand-row" hidden><span>К оплате с доставкой</span><span id="shop-grand"></span></div><p class="shop-hint">Оплата — после подтверждения заказа.</p></div>
    <form id="shop-form">
     <h3 class="shop-checkout-title">Оформление</h3><p class="shop-hint">Свяжемся с вами, подтвердим наличие, доставку и оплату.</p>
     <div class="shop-field"><label class="shop-label" for="shop-name">Ваше имя *</label><input class="shop-input" id="shop-name" name="name" autocomplete="name" minlength="2" maxlength="100" required></div>
     <div class="shop-field"><label class="shop-label" for="shop-phone">Телефон *</label><input class="shop-input" id="shop-phone" name="phone" autocomplete="tel" type="tel" minlength="10" maxlength="40" required placeholder="+7"></div>
-    <div class="shop-field"><label class="shop-label" for="shop-city">Город доставки *</label><input class="shop-input" id="shop-city" name="city" autocomplete="address-level2" minlength="2" maxlength="100" required></div>
+    <div class="shop-field" id="shop-delivery-field">
+      <label class="shop-label">Как получить заказ</label>
+      <div class="shop-methods" role="radiogroup" aria-label="Способ получения">
+        <label class="shop-method">
+          <input type="radio" name="delivery" value="courier" id="dl-courier" checked>
+          <span class="shop-method-body"><b>Курьером по адресу</b><i>Москва и область, 1–2 дня</i></span>
+        </label>
+        <label class="shop-method">
+          <input type="radio" name="delivery" value="pickup" id="dl-pickup">
+          <span class="shop-method-body"><b>Самовывоз</b><i id="shop-pickup-note">Заберёте сами</i></span>
+        </label>
+        <label class="shop-method">
+          <input type="radio" name="delivery" value="cdek" id="dl-cdek">
+          <span class="shop-method-body"><b>Пункт выдачи СДЭК</b><i>Подберём вместе при подтверждении</i></span>
+        </label>
+      </div>
+
+      <div class="shop-address" id="shop-address">
+        <div class="shop-field">
+          <label class="shop-label" for="addr-city">Город *</label>
+          <input class="shop-input" id="addr-city" name="addr_city" autocomplete="address-level2" maxlength="80" placeholder="Москва" list="addr-cities">
+          <datalist id="addr-cities">
+            <option value="Москва"></option><option value="Санкт-Петербург"></option><option value="Краснодар"></option>
+            <option value="Екатеринбург"></option><option value="Казань"></option><option value="Нижний Новгород"></option>
+            <option value="Новосибирск"></option><option value="Ростов-на-Дону"></option><option value="Самара"></option>
+            <option value="Воронеж"></option><option value="Уфа"></option><option value="Пермь"></option>
+            <option value="Красноярск"></option><option value="Омск"></option><option value="Тюмень"></option>
+            <option value="Челябинск"></option><option value="Владивосток"></option><option value="Сочи"></option>
+            <option value="Саратов"></option><option value="Тверь"></option><option value="Тула"></option>
+          </datalist>
+          <p class="shop-error" id="err-addr-city" hidden></p>
+        </div>
+        <div class="shop-field" id="shop-postcode-field">
+          <label class="shop-label" for="addr-postcode">Индекс</label>
+          <input class="shop-input" id="addr-postcode" name="addr_postcode" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="101000">
+          <p class="shop-error" id="err-addr-postcode" hidden></p>
+        </div>
+        <div class="shop-field shop-span2" id="shop-street-field">
+          <label class="shop-label" for="addr-street">Улица, дом, корпус *</label>
+          <input class="shop-input" id="addr-street" name="addr_street" autocomplete="address-line1" maxlength="120" placeholder="ул. Арбат, 24, корп. 1">
+          <p class="shop-error" id="err-addr-street" hidden></p>
+        </div>
+        <div class="shop-field" id="shop-flat-field">
+          <label class="shop-label" for="addr-flat">Квартира / офис</label>
+          <input class="shop-input" id="addr-flat" name="addr_flat" autocomplete="address-line2" maxlength="20" placeholder="кв. 5">
+        </div>
+        <div class="shop-field" id="shop-note-field">
+          <label class="shop-label" for="addr-note">Подъезд, этаж, домофон</label>
+          <input class="shop-input" id="addr-note" name="addr_note" maxlength="60" placeholder="подъезд 2, код 1234">
+        </div>
+      </div>
+
+      <div class="shop-pickup" id="shop-pickup-box" hidden>
+        <b>Самовывоз</b>
+        <span id="shop-pickup-address">Адрес самовывоза уточним в сообщении.</span>
+      </div>
+      <div class="shop-pickup" id="shop-cdek-box" hidden>
+        <b>Пункт выдачи СДЭК</b>
+        <span>После подтверждения заказа пришлём список удобных пунктов в вашем городе — выберете подходящий.</span>
+      </div>
+
+      <p class="shop-hint" id="shop-delivery-cost"></p>
+    </div>
+
     <div class="shop-field"><label class="shop-label" for="shop-contact">Telegram или другой удобный контакт</label><input class="shop-input" id="shop-contact" name="contact" maxlength="120" placeholder="@username — необязательно"></div>
     <div class="shop-field"><label class="shop-label" for="shop-comment">Комментарий к заказу</label><textarea id="shop-comment" name="comment" maxlength="500" placeholder="Например, пожелание к упаковке"></textarea></div>
     <label class="shop-consent"><input type="checkbox" name="consent" required><span>Согласен на обработку персональных данных для связи и оформления заказа. <a href="documents.html" class="shop-policy">Документы</a></span></label>
@@ -75,4 +138,5 @@
 <script src="assets/js/cart.js"></script>
 <script src="assets/js/router.js"></script>
 <script src="assets/js/main.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5862e029f5c761a',t:'MTc5NDMyNTQ3OA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5862e029f5c761a',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
 </body></html>
