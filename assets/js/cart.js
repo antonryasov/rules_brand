@@ -14,6 +14,139 @@
   var storageKey = 'rules-cart-v3';
   var items = [], promo = '', busy = false, preparing = false, lastFocus = null;
 
+  /* ---------- доставка ---------- */
+  var delivery = {
+    cfg: null,          /* ответ /delivery/config */
+    method: 'discuss',  /* discuss | cdek_pvz | cdek_courier */
+    point: null,        /* выбранный пункт выдачи */
+    cost: 0,
+    period: '',
+    points: [],
+    busy: false
+  };
+
+  function apiBase() { return (S.apiBase || '').replace(/\/+$/, ''); }
+
+  function loadDeliveryConfig() {
+    if (!/^https?:\/\//.test(apiBase())) return Promise.resolve(null);
+    return fetch(apiBase() + '/delivery/config', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        delivery.cfg = d;
+        var pvz = document.getElementById('dl-pvz');
+        var courier = document.getElementById('dl-courier');
+        var on = !!(d && d.cdek && d.cdek.enabled);
+        if (pvz) pvz.disabled = !on;
+        if (courier) courier.disabled = !on;
+        var note = document.getElementById('shop-delivery-cost');
+        if (!on && note) {
+          note.textContent = 'Онлайн-расчёт СДЭК пока недоступен — согласуем доставку с вами после заказа.';
+          /* переключатели СДЭК включаются только когда расчёт реально доступен */
+          delivery.method = 'discuss';
+          var disc = document.getElementById('dl-discuss');
+          if (disc) disc.checked = true;
+        }
+        return d;
+      })
+      .catch(function () { return null; });
+  }
+
+  function money2(n) { return S.money(n); }
+
+  function renderDeliveryTotals() {
+    var calc = S.calculate(items, promo);
+    var row = document.getElementById('shop-delivery-row');
+    var grand = document.getElementById('shop-grand-row');
+    var cost = delivery.method === 'discuss' ? 0 : delivery.cost || 0;
+    if (row && grand) {
+      if (cost > 0) {
+        row.hidden = false; grand.hidden = false;
+        document.getElementById('shop-delivery-sum').textContent = money2(cost);
+        document.getElementById('shop-grand').textContent = money2(calc.total + cost);
+      } else {
+        row.hidden = true; grand.hidden = true;
+      }
+    }
+    var line = document.getElementById('shop-delivery-cost');
+    if (line) {
+      if (delivery.method === 'discuss') line.textContent = 'Согласуем доставку и оплату после подтверждения заказа.';
+      else if (delivery.cost) line.textContent = 'Доставка СДЭК: ' + money2(delivery.cost) + (delivery.period ? ' · ' + delivery.period : '');
+      else if (delivery.busy) line.textContent = 'Считаем стоимость доставки…';
+      else line.textContent = '';
+    }
+  }
+
+  function setMethod(method) {
+    delivery.method = method;
+    var box = document.getElementById('shop-pvz');
+    if (box) box.hidden = method !== 'cdek_pvz';
+    if (method === 'discuss') { delivery.cost = 0; delivery.period = ''; }
+    say('');
+    renderDeliveryTotals();
+    if (method !== 'discuss') calcDelivery();
+  }
+
+  /* стоимость доставки по городу и способу */
+  function calcDelivery() {
+    var city = (document.getElementById('shop-city').value || '').trim();
+    if (delivery.method === 'discuss' || city.length < 2) { renderDeliveryTotals(); return; }
+    if (delivery.method === 'cdek_pvz' && !delivery.point) { renderDeliveryTotals(); return; }
+    delivery.busy = true;
+    renderDeliveryTotals();
+    fetch(apiBase() + '/delivery/calc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: city, method: delivery.method })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        delivery.busy = false;
+        if (!d || !d.ok) { say((d && d.error) || 'Не удалось рассчитать доставку СДЭК.', true); delivery.cost = 0; renderDeliveryTotals(); return; }
+        delivery.cost = Number(d.cost) || 0;
+        delivery.period = d.periodMin ? ('срок ' + d.periodMin + '–' + d.periodMax + ' дн.') : '';
+        renderDeliveryTotals();
+      })
+      .catch(function () {
+        delivery.busy = false;
+        say('СДЭК не ответил — выберите «обсудить с продавцом».', true);
+        delivery.cost = 0;
+        renderDeliveryTotals();
+      });
+  }
+
+  /* список пунктов выдачи */
+  function findPoints() {
+    var city = (document.getElementById('shop-city').value || '').trim();
+    var hint = document.getElementById('shop-pvz-hint');
+    var box = document.getElementById('shop-pvz-list');
+    if (city.length < 2) { say('Сначала укажите город доставки.', true); return; }
+    if (hint) hint.textContent = 'Ищем пункты выдачи…';
+    if (box) box.innerHTML = '';
+    fetch(apiBase() + '/delivery/points?city=' + encodeURIComponent(city))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) { if (hint) hint.textContent = (d && d.error) || 'Пункты не найдены.'; return; }
+        delivery.points = d.points || [];
+        if (hint) hint.textContent = delivery.points.length
+          ? 'Найдено ' + delivery.points.length + ' пунктов в ' + (d.city && d.city.city) + '. Выберите удобный:'
+          : 'В этом городе пунктов не нашлось — выберите курьера или согласуйте доставку.';
+        if (box) {
+          box.innerHTML = delivery.points.map(function (p, i) {
+            return '<label class="shop-pvz-item"><input type="radio" name="pvz" value="' + i + '">' +
+              '<span><b>' + escapeHtml(p.address) + '</b>' +
+              (p.workTime ? '<br><i>' + escapeHtml(p.workTime) + '</i>' : '') + '</span></label>';
+          }).join('');
+        }
+      })
+      .catch(function () { if (hint) hint.textContent = 'СДЭК не ответил. Попробуйте позже или согласуйте доставку с продавцом.'; });
+  }
+
+  function escapeHtml(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   function save() {
     try { localStorage.setItem(storageKey, JSON.stringify({ items: items, promo: promo })); } catch (e) { }
   }
@@ -68,6 +201,7 @@
     hint.textContent = promo ? calc.promoMessage : 'Один промокод на заказ; скидки не суммируются.';
     hint.classList.toggle('error', !!promo && !calc.code);
     $('shop-clear-promo').hidden = !promo;
+    renderDeliveryTotals();
   }
 
   function open() {
@@ -197,6 +331,33 @@
       }
     };
 
+    /* --- доставка: переключатели, поиск ПВЗ, пересчёт --- */
+    var cityInput = document.getElementById('shop-city');
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="delivery"]'), function (r) {
+      r.addEventListener('change', function () {
+        delivery.point = null;
+        var list = document.getElementById('shop-pvz-list');
+        if (list) list.innerHTML = '';
+        setMethod(r.value);
+      });
+    });
+    var findBtn = document.getElementById('shop-find-pvz');
+    if (findBtn) findBtn.addEventListener('click', findPoints);
+    var pvzList = document.getElementById('shop-pvz-list');
+    if (pvzList) {
+      pvzList.addEventListener('change', function (e) {
+        var i = Number(e.target.value);
+        if (!isFinite(i)) return;
+        delivery.point = delivery.points[i] || null;
+        renderDeliveryTotals();
+        calcDelivery();
+      });
+    }
+    if (cityInput) cityInput.addEventListener('blur', function () {
+      if (delivery.method !== 'discuss') calcDelivery();
+    });
+    loadDeliveryConfig();
+
     form.addEventListener('submit', submit);
     load(); render();
   }
@@ -212,6 +373,10 @@
     if (codeInput.value.trim().toUpperCase() !== promo) { say('Примените промокод или очистите поле.', true); return; }
     var calc = S.calculate(items, promo);
     if (promo && !calc.code) { say(calc.promoMessage, true); return; }
+    if (delivery.method === 'cdek_pvz' && !delivery.point) {
+      say('Выберите пункт выдачи СДЭК или переключитесь на «обсудить с продавцом».', true);
+      return;
+    }
     var phone = $('shop-phone').value;
     if ((phone.match(/\d/g) || []).length < 10) { say('Введите телефон не менее чем из 10 цифр.', true); $('shop-phone').focus(); return; }
 
@@ -224,7 +389,13 @@
       promo: promo,
       name: fd.get('name'), phone: phone, city: fd.get('city'),
       contact: fd.get('contact'), comment: fd.get('comment'),
-      consent: fd.get('consent') === 'on'
+      consent: fd.get('consent') === 'on',
+      delivery: {
+        method: delivery.method,
+        city: fd.get('city'),
+        pointCode: delivery.point ? delivery.point.code : '',
+        pointAddress: delivery.point ? delivery.point.address : ''
+      }
     };
     if (!window.crypto || !crypto.subtle) { say('Откройте сайт по адресу HTTPS для оформления заказа.', true); return; }
     $('shop-forget').hidden = true;
@@ -289,16 +460,38 @@
       if (data.id !== pending.id) throw new Error('Обновление магазина ещё не завершено. Свяжитесь с продавцом.');
       items = []; promo = ''; save(); form.reset();
       try { sessionStorage.removeItem('rules-pending-v3'); } catch (e) { }
-      success.textContent = 'Заказ № ' + data.id.slice(0, 8).toUpperCase() +
-        ' принят. Свяжемся с вами для подтверждения доставки и оплаты.';
-      var bot = $('shop-telegram');
-      if (typeof data.bot === 'string' && /^[a-zA-Z0-9_]{5,32}$/.test(data.bot) && /bot$/i.test(data.bot)) {
-        bot.href = 'https://t.me/' + data.bot + '?start=' + pending.token;
-        bot.hidden = false;
+      var num = data.id.slice(0, 8).toUpperCase();
+      var botOk = typeof data.bot === 'string' && /^[a-zA-Z0-9_]{5,32}$/.test(data.bot) && /bot$/i.test(data.bot);
+      var dlv = data.delivery || {};
+      var dlvLine = '';
+      if (dlv.method === 'cdek_pvz') {
+        dlvLine = 'Доставка: СДЭК, пункт выдачи' + (dlv.pointAddress ? ' — ' + dlv.pointAddress : '') +
+          (dlv.cost ? ', ' + S.money(dlv.cost) : '');
+      } else if (dlv.method === 'cdek_courier') {
+        dlvLine = 'Доставка: СДЭК, курьером' + (dlv.cost ? ', ' + S.money(dlv.cost) : '');
       } else {
-        bot.hidden = true;
-        success.textContent += ' Бот для отслеживания пока не подключён.';
+        dlvLine = 'Доставку и оплату согласуем с вами.';
       }
+      var link = botOk ? 'https://t.me/' + data.bot + '?start=' + pending.token : '';
+      success.innerHTML =
+        '<div class="order-done">' +
+          '<div class="order-done-head">Заказ № ' + num + ' принят</div>' +
+          '<p class="order-done-text">Мы получили заказ и свяжемся с вами для подтверждения.</p>' +
+          '<p class="order-done-text">' + escapeHtml(dlvLine) + '</p>' +
+          (botOk
+            ? '<div class="order-done-bot">' +
+                '<div class="order-done-bot-title">Включите отслеживание в Telegram</div>' +
+                '<p class="order-done-text">Нажмите кнопку — откроется бот <b>@' + data.bot + '</b>. ' +
+                  'В нём нажмите «Запустить» (Start) — заказ привяжется автоматически, и все статусы будут приходить в чат.</p>' +
+                '<a class="btn shop-submit order-done-btn" href="' + link + '" target="_blank" rel="noopener noreferrer">' +
+                  'Открыть бота и получать статусы ↗</a>' +
+                '<p class="shop-hint">Бот не открылся? Найдите в Telegram @' + data.bot + ', нажмите «Запустить» и отправьте код: ' +
+                  '<code class="order-done-code">' + pending.token + '</code></p>' +
+              '</div>'
+            : '<p class="shop-hint">Отслеживание в Telegram пока не подключено — статусы пришлём по указанному контакту.</p>') +
+        '</div>';
+      var bot = $('shop-telegram');
+      if (bot) bot.hidden = true;
       say('');
       render();
       success.focus();
