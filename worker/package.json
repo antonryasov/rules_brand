@@ -1,0 +1,19 @@
+{
+  "name": "rules-worker",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RULES: приём заказов, живой каталог и личный кабинет на Cloudflare Workers + D1",
+  "scripts": {
+    "build": "node build.mjs",
+    "schema": "npx wrangler d1 execute rules-orders-db --remote --file=./schema.sql",
+    "schema:local": "npx wrangler d1 execute rules-orders-db --local --file=./schema.sql",
+    "seed": "node scripts/seed.mjs && npx wrangler d1 execute rules-orders-db --remote --file=./seed.sql",
+    "seed:local": "node scripts/seed.mjs && npx wrangler d1 execute rules-orders-db --local --file=./seed.sql",
+    "dev": "node build.mjs && npx wrangler dev --local",
+    "deploy": "node build.mjs && npx wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

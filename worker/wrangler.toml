@@ -1,0 +1,37 @@
+# ============================================================
+# RULES · Worker (деплой через wrangler)
+# ------------------------------------------------------------
+# 1. npm install
+# 2. впишите database_id вашей базы D1 (Cloudflare → D1 → rules-orders-db → Database ID)
+#    для локального запуска значение не важно — база поднимается в .wrangler/state
+# 3. npm run schema   — создать таблицы CRM
+# 4. npm run seed     — залить товары из ../data/products.json
+# 5. npm run deploy
+#
+# Секреты задаются не здесь, а командами:
+#   npx wrangler secret put ADMIN_PASSWORD
+#   npx wrangler secret put SESSION_SECRET
+#   и остальные из README.
+# ============================================================
+
+name = "rules-orders"
+main = "dist/worker.js"
+compatibility_date = "2025-01-15"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rules-orders-db"
+database_id = "ВАШ_D1_DATABASE_ID"   # ← вставьте ID базы: Cloudflare → D1 → rules-orders-db → Database ID
+
+# очередь Telegram просыпается каждые 5 минут
+[triggers]
+crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true
+
+# Переменные, которые НЕ являются секретами:
+[vars]
+ALLOWED_ORIGIN = "https://antonryasov.github.io"
+CUSTOMER_BOT_USERNAME = "rules_clients_bot"

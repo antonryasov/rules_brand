@@ -1,0 +1,51 @@
+{
+  "RULES5": {
+    "label": "5% на весь заказ",
+    "percent": 5
+  },
+  "GORY10": {
+    "label": "10% на ароматы «Горы»",
+    "percent": 10,
+    "family": "gory"
+  },
+  "SILA7": {
+    "label": "7% на ароматы «Сила»",
+    "percent": 7,
+    "family": "sila"
+  },
+  "SVECHA8": {
+    "label": "8% на свечи",
+    "percent": 8,
+    "type": "candle"
+  },
+  "DOM6": {
+    "label": "6% на диффузоры",
+    "percent": 6,
+    "type": "diffuser"
+  },
+  "PARA10": {
+    "label": "10% при покупке от 2 товаров",
+    "percent": 10,
+    "minQty": 2
+  },
+  "TRIO12": {
+    "label": "12% при покупке от 3 товаров",
+    "percent": 12,
+    "minQty": 3
+  },
+  "NABOR5": {
+    "label": "5% на подарочные наборы",
+    "percent": 5,
+    "type": "set"
+  },
+  "BOLSHOY15": {
+    "label": "15% при сумме товаров от 8 000 ₽",
+    "percent": 15,
+    "minSum": 8000
+  },
+  "RYASOV300": {
+    "label": "300 ₽ при сумме товаров от 3 500 ₽",
+    "fixed": 300,
+    "minSum": 3500
+  }
+}

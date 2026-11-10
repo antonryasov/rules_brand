@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RULES — страница не найдена</title>
+<style>
+  html,body{margin:0;height:100%;background:#070707;color:#efeae0;font:16px/1.6 system-ui,sans-serif;display:grid;place-items:center;text-align:center;padding:24px}
+  b{display:block;font-size:44px;letter-spacing:.1em;margin-bottom:14px}
+  a{color:#2e8b62}
+</style>
+<script>
+  /* GitHub Pages отдаёт этот файл на любой несуществующий адрес.
+     Превращаем /catalog.html в index.html#/catalog.html — сайт работает по хеш-адресам. */
+  (function () {
+    var parts = location.pathname.split('/');
+    var file = parts[parts.length - 1] || '';
+    if (/\.html$/i.test(file) && file.toLowerCase() !== '404.html' && file.toLowerCase() !== 'index.html') {
+      location.replace('index.html#/' + file.replace(/\.html$/i, '').toLowerCase());
+    } else {
+      location.replace('index.html');
+    }
+  })();
+</script>
+</head>
+<body>
+  <div>
+    <b>RULES</b>
+    Переносим вас на главную… <a href="index.html">Открыть сайт</a>
+  </div>
+</body>
+</html>
