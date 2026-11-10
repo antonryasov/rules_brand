@@ -52,3 +52,6 @@
   text-transform: uppercase;
   color: var(--ash);
 }
+
+.pdp-badge{display:inline-block;margin-bottom:14px;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;font-weight:700;background:var(--emerald2);color:#070707;padding:7px 12px}
