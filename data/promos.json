@@ -48,9 +48,11 @@
     "fixed": 300,
     "minSum": 3500
   },
-  "RYASOVVIP": {
-    "label": "Скидка 100% на заказ и бесплатная доставка",
-    "percent": 100,
-    "minSum": 0
+  "RYASOVLOVESYOU": {
+    "label": "Набор «Дорога» в подарок и бесплатная доставка от 5 000 ₽",
+    "percent": 0,
+    "minSum": 5000,
+    "gift": "set-doroga",
+    "freeDelivery": true
   }
 }
