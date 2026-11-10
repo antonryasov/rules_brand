@@ -3,14 +3,21 @@
 Worker — это серверная часть: принимает заказы с сайта, хранит их в базе D1,
 обслуживает личный кабинет и пересылает сообщения в Telegram.
 
-Файл для деплоя: **`worker/dist/worker.js`** (один файл, ничего дополнительно
+Файл для деплоя: **`worker/worker.js`** (один файл, ничего дополнительно
 загружать не нужно).
+
+> ⚠️ Не путайте два похожих файла:
+> `worker/src/worker.js` — исходник без интерфейса кабинета (служебный маркер
+> `__ADMIN_HTML__`), `worker/worker.js` — собранный файл, в который вшиты
+> `admin/index.html`, `admin/app.css` и `admin/app.js`. Если открыть `/admin`
+> и вместо входа видите текст `__admin_html__` — значит в Cloudflare попал `src/`.
+> Замените код на `worker/worker.js` и нажмите Deploy.
 
 ---
 
 ## Вариант 1. Через панель Cloudflare (без установки программ)
 
-1. Откройте `worker/dist/worker.js`, нажмите **Raw** (или «Copy raw contents»),
+1. Откройте `worker/worker.js`, нажмите **Raw** (или «Copy raw contents»),
    скопируйте весь код.
 2. Cloudflare → **Workers & Pages** → выберите ваш Worker (например `rules-orders`).
 3. **Edit code** → выделите всё (Ctrl/Cmd+A) → вставьте новый код → **Deploy**.
@@ -69,10 +76,10 @@ npm run deploy
 
 ```bash
 cd worker
-node build.mjs      # создаст dist/worker.js
+node build.mjs      # создаст worker.js
 ```
 
-Дальше — скопировать `dist/worker.js` в Cloudflare (вариант 1) или `npm run deploy`.
+Дальше — скопировать `worker/worker.js` в Cloudflare (вариант 1) или `npm run deploy`.
 
 ---
 

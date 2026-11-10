@@ -14,7 +14,8 @@
 
 ## 2. Worker и база
 
-- [ ] `worker/dist/worker.js` задеплоен в Cloudflare Worker.
+- [ ] В Cloudflare вставлен `worker/worker.js` (не `src/worker.js`).
+- [ ] `https://ВАШ-WORKER.workers.dev/admin` показывает форму входа, а не текст `__admin_html__`.
 - [ ] Привязка D1: Variable name `DB` → `rules-orders-db`.
 - [ ] `GET /health` возвращает `{"ok":true}`.
 - [ ] `GET /catalog` возвращает список товаров.
