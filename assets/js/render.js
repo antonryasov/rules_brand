@@ -140,7 +140,8 @@
       '<section style="padding:0;border:0"><div class="pdp-hero">' +
         '<img decoding="async" src="' + esc(p.images.hero || p.images.card) + '" alt="' + esc(p.name) + '" loading="eager">' +
         '<div class="pdp-title"><div>' +
-          (p.tagline ? '<div class="tagline">' + esc(p.tagline) + '</div>' : '') +
+         (p.badge ? '<div class="pdp-badge">' + esc(p.badge) + '</div>' : '') +
+         (p.tagline ? '<div class="tagline">' + esc(p.tagline) + '</div>' : '') +
           '<h1 class="h-xl">' + esc(p.name) + '</h1></div>' +
           '<div class="kicker" style="margin:0;color:var(--bone)"><span>' +
             esc([p.collection, p.typeLabel].filter(Boolean).join(' · ')) + '</span></div>' +
