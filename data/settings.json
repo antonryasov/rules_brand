@@ -2,15 +2,16 @@
   "brand": {
     "name": "RULES",
     "logo": "assets/img/logo.svg",
-    "tagline": "Свои правила. Свой аромат",
-    "legal": "Самозанятый Рясов Антон Сергеевич, ИНН 773175824431",
+    "tagline": "Свои правила. Свой запах.",
+    "legal": "Самозанятый [ФИО], ИНН [__________]",
     "copyright": "© 2026 RULES"
   },
   "contacts": {
     "email": "[адрес]",
     "telegram": "[ссылка]",
     "vk": "[ссылка]",
-    "phone": ""
+    "phone": "",
+    "bot": "rules_clients_bot"
   },
   "api": {
     "base": "https://rules-orders.antnrsv.workers.dev",
@@ -23,7 +24,7 @@
     "ash": "#8e887e",
     "line": "rgba(239,234,224,.12)",
     "emerald": "#0d5539",
-    "emerald2": "#4D8076",
+    "emerald2": "#2e8b62",
     "ice": "#a9d8e8"
   },
   "fonts": {
@@ -35,9 +36,9 @@
     "heroImage": "assets/img/hero.webp"
   },
   "delivery": {
-    "courierCost": 490,
-    "freeFrom": 5000,
-    "pickupAddress": "г. Москва, метро Крылатское",
+    "courierCost": 0,
+    "freeFrom": 0,
+    "pickupAddress": "",
     "pickupNote": ""
   },
   "cart": {
