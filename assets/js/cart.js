@@ -281,15 +281,76 @@
 
   /* подарок по промокоду: отдельная строка в корзине */
   function giftLine(calc) {
-    var cfg = S.promos[calc.code] || {};
-    var known = calc.gift || null;
-    var name = cfg.giftName || (known && (known.fullName || known.name)) || 'Подарок';
-    var desc = cfg.giftDesc || (known && (known.tagline || known.lead)) || '';
+    if (!calc.gift) return '';
     return '<div class="shop-line shop-gift"><div>' +
-      '<div class="shop-line-name">Подарок: ' + escapeHtml(name) + '</div>' +
-      (desc ? '<div class="shop-line-price">' + escapeHtml(desc) + '</div>' : '') +
+      '<div class="shop-line-name">Подарок: ' + escapeHtml(calc.gift.fullName || calc.gift.name) + '</div>' +
       '<div class="shop-line-price">По промокоду ' + escapeHtml(calc.code) + ' · 1 шт. бесплатно</div>' +
       '</div><div><div class="shop-line-price" style="text-align:right">0 ₽</div></div></div>';
+  }
+
+  /* ---------- клуб: баланс баллов ---------- */
+  var club = { token: '', points: 0, maxRedeem: 30, cashback: 5, loaded: false, busy: false };
+  try { club.token = localStorage.getItem('rules-club-token') || ''; } catch (e) { club.token = ''; }
+  var usedPoints = 0;
+
+  function clubApiBase() {
+    return String((S.apiBase || '')).replace(/\/+$/, '');
+  }
+
+  function loadClub() {
+    if (!club.token || club.busy || club.loaded) return Promise.resolve();
+    club.busy = true;
+    return fetch(clubApiBase() + '/club/me', { headers: { Authorization: 'Bearer ' + club.token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.customer) {
+          club.points = Number(d.customer.points) || 0;
+          club.maxRedeem = Number((d.settings && d.settings.maxRedeem) || 30);
+          club.cashback = Number((d.level && d.level.cashback) || 5);
+          club.loaded = true;
+          var f = $('shop-name');
+          if (f && !f.value && d.customer.name) f.value = d.customer.name;
+          var ph = $('shop-phone');
+          if (ph && !ph.value && d.customer.phone) ph.value = d.customer.phone;
+        } else if (d === null) {
+          club.token = '';
+        }
+      })
+      .catch(function () {})
+      .then(function () { club.busy = false; });
+  }
+
+  /* сколько баллов реально можно списать */
+  function pointsLimit(total) {
+    if (!club.token || !club.points) return 0;
+    var byPercent = Math.floor((total * club.maxRedeem) / 100);
+    return Math.max(0, Math.min(club.points, byPercent));
+  }
+
+  function syncPoints(calc) {
+    var box = $('shop-club');
+    if (!box) return;
+    if (!club.token || !club.points) { box.hidden = true; usedPoints = 0; return; }
+    box.hidden = false;
+    var limit = pointsLimit(calc.subtotal - calc.discount);
+    var input = $('shop-points');
+    if (input && document.activeElement !== input) input.value = usedPoints || '';
+    usedPoints = Math.min(Math.max(0, usedPoints), limit);
+    if (input) {
+      input.max = limit;
+      input.placeholder = 'до ' + limit;
+    }
+    var row = $('shop-points-row');
+    var sum = $('shop-points-sum');
+    if (row && sum) {
+      row.hidden = !usedPoints;
+      sum.textContent = '− ' + S.money(usedPoints);
+    }
+    var hint = $('shop-points-hint');
+    if (hint) {
+      hint.textContent = 'У вас ' + club.points + ' баллов. 1 балл = 1 ₽, списать можно до ' + club.maxRedeem +
+        ' % суммы — это ' + limit + ' баллов.';
+    }
   }
 
   function render() {
@@ -317,12 +378,14 @@
         '</div><div class="shop-line-price" style="text-align:right">' + S.money(p.price * x.qty) + '</div></div></div>';
     }).join('');
 
-    var giftCfg = (S.promos[calc.code] || {}).gift;
-    if (giftCfg) itemsEl.insertAdjacentHTML('beforeend', giftLine(calc));
+    if (calc.gift) itemsEl.insertAdjacentHTML('beforeend', giftLine(calc));
 
+    syncPoints(calc);
+    var afterPoints = Math.max(0, calc.total - usedPoints);
     $('shop-subtotal').textContent = S.money(calc.subtotal);
     $('shop-discount').textContent = '− ' + S.money(calc.discount);
-    $('shop-total').textContent = S.money(calc.total);
+    $('shop-total').textContent = S.money(afterPoints);
+    $('shop-total').setAttribute('data-after-points', afterPoints);
     codeInput.value = promo;
     hint.textContent = promo ? calc.promoMessage : 'Один промокод на заказ; скидки не суммируются.';
     hint.classList.toggle('error', !!promo && !calc.code);
@@ -335,6 +398,7 @@
     overlay.hidden = false;
     document.documentElement.classList.add('shop-open');
     render();
+    loadClub().then(function () { if (items.length) render(); });
     var btn = overlay.querySelector('.shop-close');
     if (btn) btn.focus();
   }
@@ -344,6 +408,16 @@
     overlay.hidden = true;
     document.documentElement.classList.remove('shop-open');
     if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  function toastNote(text) {
+    var el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;' +
+      'background:#efeae0;color:#0a0a0a;padding:11px 18px;border-radius:99px;font:600 13.5px/1.4 system-ui,sans-serif;' +
+      'box-shadow:0 10px 30px rgba(0,0,0,.45)';
+    document.body.appendChild(el);
+    setTimeout(function () { el.remove(); }, 4200);
   }
 
   function say(text, isError) {
@@ -376,6 +450,24 @@
     form = $('shop-form'); status = $('shop-status'); success = $('shop-success');
     badge = $('shop-badge');
 
+    var ptsInput = $('shop-points');
+    if (ptsInput) {
+      ptsInput.addEventListener('input', function () {
+        var calc = S.calculate(items, promo);
+        var limit = pointsLimit(calc.subtotal - calc.discount);
+        var v = parseInt(String(ptsInput.value).replace(/\D/g, ''), 10) || 0;
+        usedPoints = Math.max(0, Math.min(v, limit));
+        render();
+      });
+    }
+    var ptsMax = $('shop-points-max');
+    if (ptsMax) {
+      ptsMax.addEventListener('click', function () {
+        var calc = S.calculate(items, promo);
+        usedPoints = pointsLimit(calc.subtotal - calc.discount);
+        render();
+      });
+    }
     document.querySelector('.shop-cart-toggle').addEventListener('click', open);
     overlay.querySelector('.shop-close').addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
@@ -518,6 +610,8 @@
       name: fd.get('name'), phone: phone, city: address.city,
       contact: fd.get('contact'), comment: fd.get('comment'),
       consent: fd.get('consent') === 'on',
+      points: usedPoints,
+      club_token: club.token || '',
       delivery: {
         method: delivery.method,
         city: address.city,
@@ -615,6 +709,25 @@
         dlvLine += ' Доставка бесплатно по промокоду.';
       }
       var link = botOk ? 'https://t.me/' + data.bot + '?start=' + pending.token : '';
+      var pay = data.payment || {};
+      var payBlock = '';
+      if (pay.link) {
+        payBlock =
+          '<div class="order-pay" id="order-pay">' +
+            '<div class="order-pay-head">Оплата по СБП</div>' +
+            '<p class="order-done-text">Сумма к переводу: <b>' + S.money(pay.amount) + '</b>. ' +
+              'Оплатите по ссылке ниже — подойдёт любой банк, СБП или QR.</p>' +
+            '<a class="btn shop-submit order-done-btn" href="' + pay.link + '" target="_blank" rel="noopener noreferrer">Перейти к оплате ↗</a>' +
+            '<button type="button" class="btn shop-submit order-done-btn" id="order-paid" style="margin-top:8px;background:transparent;border:1px solid currentColor;color:inherit">Я оплатил(а)</button>' +
+            '<p class="shop-hint" id="order-paid-hint">' + escapeHtml(pay.note || '') + '</p>' +
+          '</div>';
+      }
+      var clubLine = '';
+      if (data.club) {
+        clubLine = '<p class="order-done-text">Клуб RULES: списано ' + (data.club.pointsUsed || 0) + ' баллов, осталось ' +
+          data.club.pointsLeft + '. Кэшбэк ' + data.club.cashback + ' % начислим после оплаты — это ещё ' +
+          Math.round((pay.amount || data.total || 0) * data.club.cashback / 100) + ' баллов.</p>';
+      }
       success.innerHTML =
         '<div class="order-done">' +
           '<div class="order-done-head">Заказ № ' + num + ' принят</div>' +
@@ -631,9 +744,37 @@
                   '<code class="order-done-code">' + pending.token + '</code></p>' +
               '</div>'
             : '<p class="shop-hint">Отслеживание в Telegram пока не подключено — статусы пришлём по указанному контакту.</p>') +
+          clubLine +
+          payBlock +
+          '<p class="shop-hint">Оплата подтверждается вручную: как только продавец увидит поступление, статус заказа изменится и придёт в бот.</p>' +
         '</div>';
       var bot = $('shop-telegram');
       if (bot) bot.hidden = true;
+      var paidBtn = $('order-paid');
+      if (paidBtn) {
+        paidBtn.addEventListener('click', function () {
+          paidBtn.disabled = true;
+          paidBtn.textContent = 'Отправляем…';
+          fetch(S.apiBase.replace(/\/+$/, '') + '/pay/claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: data.id, token: pending.token })
+          }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) {
+            if (!r.ok) throw new Error(d.error || 'Не получилось отправить');
+            return d;
+          }); }).then(function () {
+            paidBtn.textContent = 'Оплата на проверке';
+            var hint = $('order-paid-hint');
+            if (hint) hint.textContent = 'Спасибо! Продавец подтвердит оплату, и заказ перейдёт в работу. Статус придёт в бот.';
+            toastNote('Спасибо! Продавец подтвердит оплату.');
+          }).catch(function (err) {
+            paidBtn.disabled = false;
+            paidBtn.textContent = 'Я оплатил(а)';
+            var hint = $('order-paid-hint');
+            if (hint) hint.textContent = err.message;
+          });
+        });
+      }
       say('');
       render();
       success.focus();
