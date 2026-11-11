@@ -74,3 +74,11 @@
 .order-pay .order-done-btn{margin-top:10px}
 #shop-club .shop-promo-row{display:flex;gap:8px}
 #shop-points{max-width:130px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* кнопка личного кабинета рядом с корзиной */
+.shop-club-entry{display:flex;align-items:center;gap:8px;padding:10px;font:700 11px/1 var(--text);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;color:var(--bone);text-decoration:none;transition:color .18s}
+.shop-club-entry:hover{color:var(--emerald2)}
+.shop-club-ico{display:inline-flex;align-items:center;justify-content:center}
+.shop-club-badge{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border:1px solid rgba(125,214,168,.55);border-radius:99px;font-size:10px;letter-spacing:0;color:#9fe0bb}
+.shop-club-entry:focus-visible{outline:2px solid #80d4a1;outline-offset:3px}
+@media(max-width:900px){.shop-club-entry{margin-left:auto;padding:10px 6px}.shop-club-entry .shop-club-text{display:none}.shop-club-entry + .shop-cart-toggle{margin-left:0}}
