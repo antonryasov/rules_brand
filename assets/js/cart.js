@@ -908,15 +908,24 @@
           '<p class="order-done-text">Мы получили заказ и свяжемся с вами для подтверждения.</p>' +
           '<p class="order-done-text">' + escapeHtml(dlvLine) + '</p>' +
           (botOk
-            ? '<div class="order-done-bot">' +
-                '<div class="order-done-bot-title">Включите отслеживание в Telegram</div>' +
-                '<p class="order-done-text">Нажмите кнопку — откроется бот <b>@' + data.bot + '</b>. ' +
-                  'В нём нажмите «Запустить» (Start) — заказ привяжется автоматически, и все статусы будут приходить в чат.</p>' +
-                '<a class="btn shop-submit order-done-btn" href="' + link + '" target="_blank" rel="noopener noreferrer">' +
-                  'Открыть бота и получать статусы ↗</a>' +
-                '<p class="shop-hint">Бот не открылся? Найдите в Telegram @' + data.bot + ', нажмите «Запустить» и отправьте код: ' +
-                  '<code class="order-done-code">' + pending.token + '</code></p>' +
-              '</div>'
+            ? (data.linked
+                ? '<div class="order-done-bot">' +
+                    '<div class="order-done-bot-title">Отслеживание уже включено</div>' +
+                    '<p class="order-done-text">Ваш Telegram привязан к номеру телефона, поэтому заказ и все статусы придут в бот <b>@' + data.bot + '</b> сами. ' +
+                      'Активировать бота заново не нужно.</p>' +
+                    '<a class="btn shop-submit order-done-btn" href="' + 'https://t.me/' + data.bot + '" target="_blank" rel="noopener noreferrer">' +
+                      'Открыть бота ↗</a>' +
+                  '</div>'
+                : '<div class="order-done-bot">' +
+                    '<div class="order-done-bot-title">Включите отслеживание в Telegram</div>' +
+                    '<p class="order-done-text">Нажмите кнопку — откроется бот <b>@' + data.bot + '</b>. Нажмите «Запустить» (Start) и поделитесь ' +
+                      'номером телефона кнопкой «📱 Отправить мой номер»: по номеру к кабинету привяжутся этот и все остальные заказы. ' +
+                      'В следующий раз активировать бота не придётся.</p>' +
+                    '<a class="btn shop-submit order-done-btn" href="' + link + '" target="_blank" rel="noopener noreferrer">' +
+                      'Открыть бота и получать статусы ↗</a>' +
+                    '<p class="shop-hint">Бот не открылся? Найдите в Telegram @' + data.bot + ', нажмите «Запустить» и отправьте код: ' +
+                      '<code class="order-done-code">' + pending.token + '</code></p>' +
+                  '</div>')
             : '<p class="shop-hint">Отслеживание в Telegram пока не подключено — статусы пришлём по указанному контакту.</p>') +
           clubLine +
           payBlock +
