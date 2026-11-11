@@ -114,4 +114,6 @@
   };
 
   RT.go = function (slug) { location.hash = '#/' + String(slug).replace(/\.html$/, ''); };
+  /* перерисовать текущую страницу (например, когда подъехали цены распродажи) */
+  RT.refresh = function () { current = null; route(); };
 })();

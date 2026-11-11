@@ -91,7 +91,14 @@
         S.localProducts.forEach(function (p) { localById[p.id] = p; });
         S.products = list.map(function (p) { return normalize(p, localById[p.id]); })
           .filter(function (p) { return p.active; });
-        if (data && data.promos) S.promos = data.promos;
+        if (data && data.promos && Object.keys(data.promos).length) {
+          /* не заменяем, а дополняем: сервер главнее, но коды из файла
+             (которых на сервере ещё нет) тоже остаются рабочими */
+          var merged = {};
+          Object.keys(S.promos || {}).forEach(function (k) { merged[k] = S.promos[k]; });
+          Object.keys(data.promos).forEach(function (k) { merged[k] = data.promos[k]; });
+          S.promos = merged;
+        }
         S.live = true;
         S.reindex();
       }).catch(function () {
@@ -159,7 +166,8 @@
     var p = S.promos[code];
     if (!p) return fail('Промокод не найден.');
     if ((p.minQty && quantity < p.minQty) || (p.minSum && subtotal < p.minSum)) {
-      return fail('Условие не выполнено: ' + p.label + '.');
+      var tail = /[.!?…]$/.test(String(p.label || '')) ? '' : '.';
+      return fail('Условие не выполнено: ' + p.label + tail);
     }
     var eligible = 0;
     items.forEach(function (it) {

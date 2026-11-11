@@ -82,3 +82,10 @@
 .shop-club-badge{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border:1px solid rgba(125,214,168,.55);border-radius:99px;font-size:10px;letter-spacing:0;color:#9fe0bb}
 .shop-club-entry:focus-visible{outline:2px solid #80d4a1;outline-offset:3px}
 @media(max-width:900px){.shop-club-entry{margin-left:auto;padding:10px 6px}.shop-club-entry .shop-club-text{display:none}.shop-club-entry + .shop-cart-toggle{margin-left:0}}
+
+/* плашка закрытой распродажи в корзине */
+.shop-drop-note{display:flex;flex-direction:column;gap:4px;border:1px solid rgba(201,164,92,.45);background:rgba(201,164,92,.08);border-radius:4px;padding:12px 14px;margin:18px 0 0;font-size:13px;line-height:1.5;color:#e7d9b8}
+.shop-drop-note b{font-size:13px;letter-spacing:.02em;color:#f0e3c6}
+.shop-drop-note span{color:#c8bda0}
+/* цены распродажи в каталоге */
+.price-drop{color:#9fe0bb}

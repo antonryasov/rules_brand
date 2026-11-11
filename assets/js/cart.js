@@ -288,6 +288,87 @@
       '</div><div><div class="shop-line-price" style="text-align:right">0 ₽</div></div></div>';
   }
 
+  /* ---------- закрытая распродажа: цены по уровню клуба ---------- */
+  var dropState = { id: '', title: '', prices: {}, active: false };
+
+  function readDropId() {
+    var m = String(location.search || '').match(/[?&]drop=([^&#]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    try {
+      var raw = JSON.parse(localStorage.getItem('rules-drop') || 'null');
+      if (raw && raw.id) return String(raw.id);
+    } catch (e) { /* приватный режим */ }
+    return '';
+  }
+
+  function dropApiBase() {
+    return (S.apiBase || window.RULES_CONFIG.fallbackApiBase || '').replace(/\/+$/, '');
+  }
+
+  function applyDropPrices() {
+    if (!dropState.active) return;
+    S.products.forEach(function (p) {
+      var dp = dropState.prices[p.id];
+      if (dp && dp > 0 && dp < p.price) {
+        /* запоминаем обычную цену: карточки товаров покажут её зачёркнутой */
+        if (!p.fullPrice) p.fullPrice = (p.oldPrice && p.oldPrice > p.price) ? p.oldPrice : p.price;
+        p.price = dp;
+        p.oldPrice = p.fullPrice;
+        p.dropPrice = true;
+      }
+    });
+    S.reindex();
+  }
+
+  function showDropNote() {
+    var box = document.getElementById('shop-drop-note');
+    if (!box) return;
+    box.hidden = !dropState.active;
+    if (dropState.active) {
+      box.innerHTML = '<b>' + (dropState.title || 'Закрытая распродажа') + '</b>' +
+        '<span>Показаны цены закрытой распродажи — они действуют для её товаров, пока она открыта.</span>';
+    }
+  }
+
+  function initDrop() {
+    var id = readDropId();
+    if (!id) return Promise.resolve();
+    if (!club.token) { dropState.id = id; return Promise.resolve(); }
+    return fetch(dropApiBase() + '/club/drop/' + encodeURIComponent(id), {
+      headers: { Authorization: 'Bearer ' + club.token }
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) throw new Error(d.error || 'Распродажа недоступна');
+        return d;
+      });
+    }).then(function (d) {
+      dropState.id = d.drop.id;
+      dropState.title = d.drop.title || '';
+      dropState.active = true;
+      (d.items || []).forEach(function (i) { if (Number(i.price) > 0) dropState.prices[i.id] = Number(i.price); });
+      try { localStorage.setItem('rules-drop', JSON.stringify({ id: dropState.id, title: dropState.title })); } catch (e) {}
+      applyDropPrices();
+      showDropNote();
+      if (S.router && S.router.refresh) S.router.refresh();
+      if (overlay && !overlay.hidden) render();
+      return d;
+    }).catch(function (e) {
+      /* распродажа закрылась или уровень упал — тихо убираем */
+      dropState.active = false;
+      dropState.id = '';
+      try { localStorage.removeItem('rules-drop'); } catch (err) {}
+      if (e && e.message && /уровн/i.test(e.message) && typeof toastNote === 'function') toastNote(e.message);
+    });
+  }
+
+  function clearDrop() {
+    dropState.active = false;
+    dropState.id = '';
+    dropState.prices = {};
+    try { localStorage.removeItem('rules-drop'); } catch (e) {}
+    showDropNote();
+  }
+
   /* ---------- клуб: баланс баллов ---------- */
   var club = { token: '', points: 0, maxRedeem: 30, cashback: 5, loaded: false, busy: false };
   try { club.token = localStorage.getItem('rules-club-token') || ''; } catch (e) { club.token = ''; }
@@ -450,6 +531,7 @@
     }).join('');
 
     if (calc.gift) itemsEl.insertAdjacentHTML('beforeend', giftLine(calc));
+    showDropNote();
 
     syncPoints(calc);
     var afterPoints = Math.max(0, calc.total - usedPoints);
@@ -698,6 +780,7 @@
     var payload = {
       items: items.map(function (x) { return { id: x.id, qty: x.qty }; }),
       promo: promo,
+      drop: dropState.active ? dropState.id : '',
       name: fd.get('name'), phone: phone, city: address.city,
       contact: fd.get('contact'), comment: fd.get('comment'),
       consent: fd.get('consent') === 'on',
@@ -773,7 +856,7 @@
       });
     }).then(function (data) {
       if (data.id !== pending.id) throw new Error('Обновление магазина ещё не завершено. Свяжитесь с продавцом.');
-      items = []; promo = ''; save(); form.reset();
+      items = []; promo = ''; save(); clearDrop(); form.reset();
       applyMethod(delivery.method);
       try { sessionStorage.removeItem('rules-pending-v3'); } catch (e) { }
       var num = data.id.slice(0, 8).toUpperCase();
@@ -883,7 +966,11 @@
   C.init = function () {
     bind();
     mountClubEntry();
-    if (club.token) loadClub().then(null, function () {});
+    if (club.token) {
+      loadClub().then(initDrop, function () {});
+    } else {
+      initDrop();
+    }
     document.addEventListener('rules:catalog-updated', render);
   };
   C.add = addToCart;

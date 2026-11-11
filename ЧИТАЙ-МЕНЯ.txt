@@ -1,0 +1,24 @@
+ЭТУ ПАПКУ ЦЕЛИКОМ — В GITHUB (репозиторий rules_brand)
+================================================================
+1. Откройте https://github.com/antonryasov/rules_brand
+2. «Add file» → «Upload files»
+3. Перетащите в окно браузера ВСЁ, что внутри этой папки:
+   index.html, club.html, папку assets и папку data
+4. Внизу нажмите «Commit changes»
+5. Через 1–2 минуты откройте сайт и нажмите Ctrl+Shift+R
+
+Что куда попадёт:
+  index.html            → корень репозитория
+  club.html             → корень репозитория
+  assets/js/club.js     → assets/js/
+  assets/js/cart.js     → assets/js/
+  assets/js/router.js   → assets/js/
+  assets/js/store.js    → assets/js/
+  assets/css/club.css   → assets/css/
+  assets/css/shop.css   → assets/css/
+  data/promos.json      → data/
+  data/settings.json    → data/
+
+Worker (сервер) сюда НЕ кладётся — он загружается в Cloudflare,
+файл RULES-worker-2026-11-12.txt. Подробности — в файле
+КАК-ЗАГРУЗИТЬ-2026-11-12.txt

@@ -140,6 +140,7 @@
     renderPoints();
     renderOrders();
     renderDrops();
+    bindDrops($('#pane-drops'));
     renderProfile();
   }
   function switchTab(name) {
@@ -274,6 +275,30 @@
   }
 
   /* ---------- распродажи ---------- */
+
+  /* ---------- переход в каталог с ценами закрытой распродажи ---------- */
+  function dropLink(id) {
+    return 'index.html?drop=' + encodeURIComponent(id) + '#/catalog.html';
+  }
+
+  function rememberDrop(id) {
+    try { localStorage.setItem('rules-drop', JSON.stringify({ id: id })); } catch (e) {}
+  }
+
+  function addDropItemToCart(dropId, productId) {
+    rememberDrop(dropId);
+    var cart = { items: [], promo: '' };
+    try {
+      var raw = JSON.parse(localStorage.getItem('rules-cart-v3') || 'null');
+      if (raw && Array.isArray(raw.items)) cart = raw;
+    } catch (e) { /* пустая корзина */ }
+    var line = cart.items.filter(function (x) { return x.id === productId; })[0];
+    if (line) line.qty = Math.min(20, (line.qty || 1) + 1);
+    else cart.items.push({ id: productId, qty: 1 });
+    try { localStorage.setItem('rules-cart-v3', JSON.stringify(cart)); } catch (e) {}
+    location.href = dropLink(dropId);
+  }
+
   function renderDrops() {
     var d = state.me;
     var drops = d.drops || [];
@@ -298,11 +323,24 @@
         var save = i.basePrice && i.price && i.basePrice > i.price ? '<s>' + money(i.basePrice) + '</s>' : '';
         return '<div class="drop-item"><div class="nm">' + esc(i.name) + '</div>' +
           '<div class="pr">' + money(i.price) + save + '</div>' +
-          '<div class="st">' + (i.stock > 0 ? 'в наличии ' + i.stock + ' шт' : 'под заказ') + (i.note ? ' · ' + esc(i.note) : '') + '</div></div>';
+          '<div class="st">' + (i.stock > 0 ? 'в наличии ' + i.stock + ' шт' : 'под заказ') + (i.note ? ' · ' + esc(i.note) : '') + '</div>' +
+          (i.stock > 0 ? '<button class="btn small drop-take" data-drop="' + esc(x.id) + '" data-item="' + esc(i.id) + '">В корзину</button>' : '') +
+          '</div>';
       }).join('');
       return '<div class="drop">' + head + '<div class="drop-items">' + (items || '<div class="locked">Состав скоро появится</div>') + '</div>' +
-        '<div style="padding:14px 22px"><a class="btn small ghost" href="index.html">Забрать в каталоге</a></div></div>';
+        '<div style="padding:14px 22px"><a class="btn small ghost" data-drop-link="' + esc(x.id) + '" href="' + dropLink(x.id) + '">Все товары распродажи в каталоге</a></div></div>';
     }).join('');
+  }
+
+  function bindDrops(pane) {
+    $$('[data-drop-link]', pane).forEach(function (a) {
+      a.addEventListener('click', function () { rememberDrop(a.getAttribute('data-drop-link')); });
+    });
+    $$('.drop-take', pane).forEach(function (b) {
+      b.addEventListener('click', function () {
+        addDropItemToCart(b.getAttribute('data-drop'), b.getAttribute('data-item'));
+      });
+    });
   }
 
   /* ---------- профиль ---------- */

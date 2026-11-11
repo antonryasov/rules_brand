@@ -169,3 +169,6 @@ img{display:block;max-width:100%}
 .skeleton{height:110px;border-radius:var(--r);background:linear-gradient(90deg,rgba(255,255,255,.03),rgba(255,255,255,.07),rgba(255,255,255,.03));
   background-size:200% 100%;animation:sk 1.2s infinite}
 @keyframes sk{to{background-position:-200% 0}}
+
+/* кнопки в карточке закрытой распродажи */
+.drop-take{margin-top:10px;width:100%;justify-content:center}

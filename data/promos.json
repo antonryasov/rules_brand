@@ -43,6 +43,26 @@
     "percent": 15,
     "minSum": 8000
   },
+  "RYASOVVIP": {
+    "label": "Вся корзина за 0 ₽, набор \"Правила\" в подарок и бесплатная доставка. Для своих🫂",
+    "percent": 100,
+    "minSum": 0,
+    "gift": "set-pravila",
+    "freeDelivery": true
+  },
+  "POTIKHONKA": {
+    "label": "Только для потихонек! Вся корзина за 0 ₽, набор \"Правила\" в подарок и бесплатная доставка. Для своих🫂",
+    "percent": 100,
+    "minSum": 0,
+    "gift": "set-pravila",
+    "freeDelivery": true
+  },
+  "SVOY99": {
+    "label": "Скидка 99% на все и бесплатная доставка. Для своих🫂",
+    "percent": 99,
+    "minSum": 0,
+    "freeDelivery": true
+  },
   "RYASOV300": {
     "label": "300 ₽ при сумме товаров от 3 500 ₽",
     "fixed": 300,
@@ -60,8 +80,6 @@
     "percent": 0,
     "minSum": 5000,
     "gift": "gift-magictouch",
-    "giftName": "Бонус от студии массажа Магия Касания",
-  "giftDesc": "Сеанс расслабляющего массажа спины длительностью 60 минут в подарок",
     "freeDelivery": true
   }
 }
