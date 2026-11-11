@@ -317,7 +317,7 @@
         }
       })
       .catch(function () {})
-      .then(function () { club.busy = false; });
+      .then(function () { club.busy = false; updateClubEntry(); });
   }
 
   /* сколько баллов реально можно списать */
@@ -350,6 +350,77 @@
     if (hint) {
       hint.textContent = 'У вас ' + club.points + ' баллов. 1 балл = 1 ₽, списать можно до ' + club.maxRedeem +
         ' % суммы — это ' + limit + ' баллов.';
+    }
+  }
+
+
+  /* Если кода нет в файле (data/promos.json устарел) или сайт работает
+     без живого каталога — спрашиваем воркер. Он знает все коды.
+     Успешный ответ добавляет правило в S.promos, и дальше всё считает
+     обычный S.calculate: со скидкой, подарком и бесплатной доставкой. */
+  function checkPromoOnServer(code) {
+    var base = (S.apiBase || '').replace(/\/+$/, '');
+    if (!base || !code) return Promise.resolve(false);
+    return fetch(base + '/promo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        items: items.map(function (x) { return { id: x.id, qty: x.qty }; })
+      })
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) return false;
+      if (d.rule) {
+        S.promos[code] = d.rule;
+        if (d.gift && !S.byId[d.gift.id]) {
+          /* подарка нет в локальном каталоге — покажем хотя бы строкой */
+          S.byId[d.gift.id] = { id: d.gift.id, name: d.gift.name, price: 0, images: {} };
+        }
+        return true;
+      }
+      return false;
+    }).catch(function () { return false; });
+  }
+
+
+  /* ---------- кнопка личного кабинета рядом с корзиной ----------
+     Вставляется скриптом, поэтому появляется на всех страницах,
+     где подключена корзина, и ничего не нужно править в вёрстке. */
+  function mountClubEntry() {
+    var cartBtn = document.querySelector('.shop-cart-toggle');
+    if (!cartBtn || document.getElementById('club-entry')) return;
+    var a = document.createElement('a');
+    a.id = 'club-entry';
+    a.className = 'shop-club-entry';
+    a.href = 'club.html';
+    a.innerHTML = '<span class="shop-club-ico" aria-hidden="true">' +
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+      '<circle cx="12" cy="8" r="3.6"/><path d="M4.6 20c.6-3.9 3.6-6.1 7.4-6.1s6.8 2.2 7.4 6.1"/></svg>' +
+      '</span><span class="shop-club-text">Кабинет</span><span class="shop-club-badge" hidden></span>';
+    cartBtn.parentNode.insertBefore(a, cartBtn);
+    updateClubEntry();
+  }
+
+  function updateClubEntry() {
+    var a = document.getElementById('club-entry');
+    if (!a) return;
+    var badge = a.querySelector('.shop-club-badge');
+    var text = a.querySelector('.shop-club-text');
+    if (club.token && club.loaded) {
+      a.setAttribute('aria-label', 'Личный кабинет: ' + club.points + ' баллов');
+      a.title = 'Личный кабинет · ' + club.points + ' баллов';
+      if (text) text.textContent = 'Кабинет';
+      if (badge) {
+        badge.hidden = false;
+        badge.textContent = club.points > 999 ? Math.round(club.points / 100) / 10 + 'к' : club.points;
+      }
+      a.classList.add('is-in');
+    } else {
+      a.setAttribute('aria-label', 'Войти в личный кабинет');
+      a.title = 'Войти в личный кабинет';
+      if (text) text.textContent = 'Войти';
+      if (badge) badge.hidden = true;
+      a.classList.remove('is-in');
     }
   }
 
@@ -518,9 +589,20 @@
     });
 
     $('shop-apply').addEventListener('click', function () {
-      promo = codeInput.value.trim().toUpperCase();
+      var code = codeInput.value.trim().toUpperCase();
+      promo = code;
       success.textContent = '';
       save(); render();
+      if (!code) return;
+      if (S.calculate(items, code).code) return;
+      /* локально не сошлось — уточняем у воркера */
+      checkPromoOnServer(code).then(function (known) {
+        if (!known) return;
+        promo = code;
+        save(); render();
+        var calc = S.calculate(items, code);
+        if (!calc.code) say(calc.promoMessage, true);
+      });
     });
     $('shop-clear-promo').addEventListener('click', function () {
       promo = ''; save(); render(); codeInput.focus();
@@ -592,7 +674,16 @@
     say('');
     if (codeInput.value.trim().toUpperCase() !== promo) { say('Примените промокод или очистите поле.', true); return; }
     var calc = S.calculate(items, promo);
-    if (promo && !calc.code) { say(calc.promoMessage, true); return; }
+    if (promo && !calc.code) {
+      /* последний шанс: спросить воркер (файл промокодов мог устареть) */
+      say('Проверяем промокод…');
+      checkPromoOnServer(promo).then(function (known) {
+        var again = S.calculate(items, promo);
+        if (known && again.code) { save(); render(); submit(e); return; }
+        say(again.promoMessage, true);
+      });
+      return;
+    }
     var address = addressValue();
     var addrError = validateAddress(true);
     if (addrError) { say(addrError, true); return; }
@@ -791,6 +882,8 @@
 
   C.init = function () {
     bind();
+    mountClubEntry();
+    if (club.token) loadClub().then(null, function () {});
     document.addEventListener('rules:catalog-updated', render);
   };
   C.add = addToCart;
