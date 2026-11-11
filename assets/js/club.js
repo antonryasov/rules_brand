@@ -124,11 +124,18 @@
     $('#h-level').innerHTML = '<span class="lvl ' + l.key + '"><i class="dot ' + l.key + '"></i>' + esc(l.title) + '</span>';
     var pct = 100;
     if (l.next) {
-      var prev = l.key === 'bronze' ? 0 : (l.key === 'silver' ? d.level.levels[1].from : d.level.levels[2].from);
+      var lv = d.level.levels || [];
+      var idx = 0;
+      lv.forEach(function (x, i) { if (x.key === l.key) idx = i; });
+      var prev = idx > 0 ? lv[idx].from : 0;
       var span = Math.max(1, l.next.from - prev);
       pct = Math.max(4, Math.min(100, Math.round(((c.stats.spent - prev) / span) * 100)));
     }
     $('#h-progress').style.width = pct + '%';
+    if (l.manual) {
+      var t = $('#h-level-tag');
+      if (t) { t.textContent = 'уровень выдан вручную'; t.hidden = false; }
+    }
     $('#h-next').textContent = l.next
       ? 'До уровня «' + l.next.title + '» — ' + money(l.next.left) + ' покупок. Там кэшбэк ' + l.next.cashback + ' %.'
       : 'Максимальный уровень: кэшбэк ' + l.cashback + ' % с каждого оплаченного заказа.';
