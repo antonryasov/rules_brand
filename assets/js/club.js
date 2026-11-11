@@ -11,7 +11,17 @@
   var API = String(CFG.fallbackApiBase || '').replace(/\/+$/, '');
   var TOKEN_KEY = 'rules-club-token';
   var token = '';
-  var state = { me: null, tab: 'overview', bot: '' };
+  var state = { me: null, tab: 'overview', bot: '', botLink: '' };
+  var BOT_FALLBACK = 'rules_clients_bot';
+  function botName(v) {
+    var b = String(v || '').trim().replace(/^@/, '').replace(/^https?:\/\/t\.me\//i, '');
+    return /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(b) ? b : '';
+  }
+  function openBot() {
+    var link = state.botLink || (state.bot ? 'https://t.me/' + state.bot : '');
+    if (link) window.open(link, '_blank', 'noopener');
+    else toast('Имя бота не настроено на сервере', 'err');
+  }
 
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -72,10 +82,7 @@
     $('#gate').hidden = false;
     $('#t-exit').hidden = true;
     if (message) $('#g-err').textContent = message;
-    $('#g-bot').onclick = function () {
-      if (state.bot) window.open('https://t.me/' + state.bot, '_blank', 'noopener');
-      else toast('Имя бота не настроено на сервере', 'err');
-    };
+    $('#g-bot').onclick = openBot;
   }
 
   function saveToken(t) {
@@ -344,10 +351,7 @@
         setTimeout(function () { var el = $('#p-info'); if (el) el.textContent = ''; }, 2500);
       }).catch(function (err) { toast(err.message, 'err'); });
     });
-    $('#p-bot').addEventListener('click', function () {
-      if (state.bot) window.open('https://t.me/' + state.bot, '_blank', 'noopener');
-      else toast('Бот не настроен', 'err');
-    });
+    $('#p-bot').addEventListener('click', openBot);
     $('#p-logout').addEventListener('click', function () {
       api('/club/logout', { method: 'POST', body: {} }).catch(function () {});
       token = '';
@@ -426,10 +430,7 @@
       try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
       showGate('Вы вышли из кабинета');
     });
-    $('#t-bot').addEventListener('click', function () {
-      if (state.bot) window.open('https://t.me/' + state.bot, '_blank', 'noopener');
-      else toast('Сначала войдите через бота', 'err');
-    });
+    $('#t-bot').addEventListener('click', openBot);
 
     $('#g-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -442,11 +443,22 @@
       }).catch(function (err) { $('#g-err').textContent = err.message; });
     });
 
-    /* адрес воркера и имя бота — из настроек сайта */
+    /* адрес воркера — из настроек сайта, имя бота — из настроек и из API */
     fetch('data/settings.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (s) {
       if (s && s.api && s.api.base) API = String(s.api.base).replace(/\/+$/, '');
-      if (s && s.contacts && (s.contacts.bot || s.contacts.telegram)) state.bot = s.contacts.bot || s.contacts.telegram;
-    }).catch(function () {}).then(boot);
+      if (s && s.contacts) state.bot = botName(s.contacts.bot) || botName(s.contacts.telegram) || '';
+    }).catch(function () {}).then(function () {
+      /* /site отдаёт настоящее имя бота и адрес кабинета — он важнее настроек сайта */
+      return fetch(API + '/site', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d) return;
+        state.bot = botName(d.bot) || state.bot;
+        state.botLink = d.botLink || '';
+        if (d.clubUrl) state.clubLink = d.clubUrl;
+      }).catch(function () {});
+    }).then(function () {
+      if (!state.bot) state.bot = BOT_FALLBACK;
+      boot();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', start);
