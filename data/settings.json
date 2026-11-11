@@ -2,7 +2,7 @@
   "brand": {
     "name": "RULES",
     "logo": "assets/img/logo.svg",
-    "tagline": "Свои правила. Свой запах.",
+    "tagline": "Свои правила. Свой аромат",
     "legal": "Самозанятый [ФИО], ИНН [__________]",
     "copyright": "© 2026 RULES"
   },
@@ -36,10 +36,10 @@
     "heroImage": "assets/img/hero.webp"
   },
   "delivery": {
-    "courierCost": 0,
-    "freeFrom": 0,
-    "pickupAddress": "",
-    "pickupNote": ""
+    "courierCost": 790,
+    "freeFrom": 5000,
+    "pickupAddress": "г. Москва, метро Крылатское",
+    "pickupNote": "После подтверждения заказа договоримся о точном месте и времени"
   },
   "cart": {
     "maxQtyPerItem": 20,
