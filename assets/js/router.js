@@ -95,6 +95,10 @@
     show(slug);
   }
 
+  /* страницы, которые открываются как обычные файлы, а не внутри index.html:
+     личный кабинет и 404 живут отдельными html-файлами */
+  var NATIVE_PAGES = { 'club.html': 1, '404.html': 1 };
+
   RT.start = function () {
     app = document.getElementById('page');
     document.addEventListener('click', function (e) {
@@ -102,8 +106,12 @@
       if (!a) return;
       var href = a.getAttribute('href') || '';
       if (a.target || a.hasAttribute('download')) return;
+      /* ссылка помечена как «обычный переход» — отдаём браузеру */
+      if (a.hasAttribute('data-native') || a.getAttribute('data-native') === '') return;
       var m = href.match(/^(?:\.\/)?([a-z0-9][a-z0-9-]*)\.html(?:#.*)?$/i);
       if (!m) return;
+      /* личный кабинет, 404 и любые другие отдельные файлы не подменяем хешем */
+      if (NATIVE_PAGES[m[1].toLowerCase() + '.html']) return;
       e.preventDefault();
       var slug = m[1].toLowerCase() + '.html';
       if (slug === slugOf(location.hash)) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
