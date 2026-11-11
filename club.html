@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RULES · клуб и личный кабинет</title>
+<meta name="description" content="Клуб RULES: баллы за покупки, закрытые распродажи и лимитированные коллекции, история заказов и оплата по СБП.">
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/club.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <a class="logo" href="index.html">RULES<small>клуб</small></a>
+    <span class="spacer"></span>
+    <a class="link" href="index.html">Каталог</a>
+    <button class="link" id="t-bot">Бот</button>
+    <button class="link" id="t-exit" hidden>Выйти</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- вход -->
+  <section class="gate" id="gate" hidden>
+    <div class="gate-card">
+      <h1>Клуб <em>RULES</em></h1>
+      <p>Баллы за каждую покупку, закрытые распродажи и лимитированные коллекции. Вход — через Telegram-бота: там же статусы заказов и переписка с продавцом.</p>
+      <button class="btn block" id="g-bot">Войти через Telegram</button>
+      <div class="hr"></div>
+      <div class="k">Уже открывали бота?</div>
+      <form class="code-form" id="g-form" autocomplete="off">
+        <input id="g-code" inputmode="numeric" maxlength="6" placeholder="000000" aria-label="Код из бота">
+        <button class="btn ghost" type="submit">Войти</button>
+      </form>
+      <div class="err" id="g-err"></div>
+      <p class="gate-hint">Код приходит в бот покупателей по кнопке «Кабинет и баллы». Он действует 30 минут — если не успели, запросите новый.</p>
+    </div>
+  </section>
+
+  <!-- кабинет -->
+  <section id="app" hidden>
+    <div class="hero">
+      <div class="card points">
+        <div class="k">Баллы клуба</div>
+        <div class="big mono" id="h-points">0<small>баллов · 1 балл = 1 ₽</small></div>
+        <div id="h-level"></div>
+        <div class="progress"><i id="h-progress" style="width:0%"></i></div>
+        <div class="gate-hint" id="h-next"></div>
+      </div>
+      <div class="card">
+        <div class="k">Здравствуйте</div>
+        <div class="big" id="h-name" style="font-size:clamp(22px,3.4vw,30px)">—</div>
+        <div class="stat"><span>Заказов</span><b id="h-orders">0</b></div>
+        <div class="stat"><span>Куплено на</span><b id="h-spent">0 ₽</b></div>
+        <div class="stat"><span>Кэшбэк</span><b id="h-cashback">5 %</b></div>
+      </div>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button data-tab="overview" class="on">Обзор</button>
+      <button data-tab="points">Баллы</button>
+      <button data-tab="orders">Заказы</button>
+      <button data-tab="drops">Закрытые распродажи</button>
+      <button data-tab="profile">Профиль</button>
+    </nav>
+
+    <div class="pane on" id="pane-overview"></div>
+    <div class="pane" id="pane-points"></div>
+    <div class="pane" id="pane-orders"></div>
+    <div class="pane" id="pane-drops"></div>
+    <div class="pane" id="pane-profile"></div>
+
+    <p class="foot">RULES · клуб · <a href="index.html">вернуться в каталог</a></p>
+  </section>
+
+  <div id="loading"><div class="skeleton" style="margin-top:26px"></div><div class="skeleton" style="margin-top:14px;height:60px"></div></div>
+</div>
+
+<!-- оплата -->
+<div class="sheet" id="pay">
+  <div class="sheet-in" style="position:relative">
+    <button class="close" data-close>&times;</button>
+    <div class="k">Оплата по СБП</div>
+    <div class="amount" id="pay-amount">0 ₽</div>
+    <div class="gate-hint" id="pay-order"></div>
+    <div class="copy"><span>Сумма к переводу</span><b class="mono" id="pay-sum">0</b><button class="btn small ghost" id="pay-copy" style="margin-left:auto">Копировать</button></div>
+    <ol class="steps">
+      <li>Откройте ссылку ниже — это платёжная ссылка Ozon Банка.</li>
+      <li>Переведите точную сумму из строки выше.</li>
+      <li>Вернитесь сюда и нажмите «Я оплатил(а)». Продавец подтвердит оплату, и заказ перейдёт в работу.</li>
+    </ol>
+    <a class="btn green block" id="pay-link" target="_blank" rel="noopener">Перейти к оплате</a>
+    <button class="btn ghost block" id="pay-claim" style="margin-top:10px">Я оплатил(а)</button>
+    <div class="err" id="pay-err"></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/club.js"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a58e2141b93950ce',t:'MTc5NDQwODg0Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a58e2141b93950ce',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
