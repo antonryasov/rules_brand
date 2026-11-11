@@ -67,3 +67,10 @@
 .shop-line.shop-gift{border-left:2px solid #7fd2a1;padding-left:12px;margin-top:-1px}
 .shop-line.shop-gift .shop-line-name{color:#bfe9cd}
 .shop-line.shop-gift .shop-line-price{color:#8fce9f}
+
+/* ---------- оплата по СБП и клуб в корзине ---------- */
+.order-pay{margin:18px 0 8px;padding:18px;border:1px solid rgba(239,234,224,.16);border-radius:14px;background:rgba(255,255,255,.03)}
+.order-pay-head{font-family:var(--display,'Unbounded',sans-serif);font-size:15px;letter-spacing:.02em;margin-bottom:8px}
+.order-pay .order-done-btn{margin-top:10px}
+#shop-club .shop-promo-row{display:flex;gap:8px}
+#shop-points{max-width:130px;text-align:center;font-variant-numeric:tabular-nums}
