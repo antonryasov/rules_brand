@@ -75,6 +75,7 @@
     var cfg = deliveryCfg();
     /* промокод может давать бесплатную доставку любым способом */
     if (S.calculate(items, promo).freeDelivery) return 0;
+    if (!items.length) return 0;
     if (delivery.method !== 'courier') return 0;
     if (!cfg.courierCost) return 0;
     var calc = S.calculate(items, promo);
@@ -127,21 +128,38 @@
     }
   }
 
-  /* адрес самовывоза и стоимость доставки: берём из data/settings.json, при наличии — с сервера */
+  /* адрес самовывоза и стоимость доставки: главный источник — data/settings.json,
+     сервер (/delivery/config) только дополняет: он не должен затирать нулями то,
+     что указано в файле настроек. */
   function applyDeliveryInfo(src) {
     if (!src) return;
+    var cur = delivery.cfg || {};
+    var cost = Number(src.courierCost != null ? src.courierCost : src.cost);
+    var free = Number(src.freeFrom);
     delivery.cfg = {
-      courierCost: Number(src.courierCost || src.cost || 0) || 0,
-      freeFrom: Number(src.freeFrom || 0) || 0,
-      pickupAddress: src.pickupAddress || '',
-      pickupNote: src.pickupNote || ''
+      courierCost: isFinite(cost) && cost > 0 ? cost : Number(cur.courierCost) || 0,
+      freeFrom: isFinite(free) && free > 0 ? free : Number(cur.freeFrom) || 0,
+      pickupAddress: src.pickupAddress || cur.pickupAddress || '',
+      pickupNote: src.pickupNote || cur.pickupNote || ''
     };
+
     var note = document.getElementById('shop-pickup-note');
     if (note) note.textContent = delivery.cfg.pickupAddress ? delivery.cfg.pickupAddress : 'Заберёте сами';
     var addr = document.getElementById('shop-pickup-address');
-    if (addr && delivery.cfg.pickupAddress) {
-      addr.textContent = 'Забрать можно по адресу: ' + delivery.cfg.pickupAddress +
-        (delivery.cfg.pickupNote ? ' · ' + delivery.cfg.pickupNote : '');
+    if (addr) {
+      addr.textContent = delivery.cfg.pickupAddress
+        ? 'Забрать можно по адресу: ' + delivery.cfg.pickupAddress +
+          (delivery.cfg.pickupNote ? ' · ' + delivery.cfg.pickupNote : '')
+        : 'Адрес самовывоза уточним в сообщении.';
+    }
+    /* подпись под «Курьером по адресу» */
+    var courier = document.getElementById('shop-courier-note');
+    if (courier) {
+      var cfg = deliveryCfg();
+      courier.textContent = cfg.courierCost > 0
+        ? 'Москва и область · ' + S.money(cfg.courierCost) +
+          (cfg.freeFrom > 0 ? ', бесплатно от ' + S.money(cfg.freeFrom) : '')
+        : (cfg.freeFrom > 0 ? 'Москва и область, 1–2 дня' : 'Москва и область, 1–2 дня');
     }
     renderDeliveryTotals();
   }
