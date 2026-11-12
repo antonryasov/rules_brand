@@ -1,0 +1,199 @@
+/* ============================================================
+   RULES · PRIVATE CLUB
+   ------------------------------------------------------------
+   Стили страницы программы лояльности (content/private-club.html).
+   Всё оформление — градиенты, свечения, орбиты — на CSS и SVG,
+   без картинок, чтобы страница весила копейки и не ждала загрузки.
+   ============================================================ */
+
+.cx{position:relative;--a:#a9d8e8;--a-soft:rgba(169,216,232,.16);--a-line:rgba(169,216,232,.4)}
+
+/* уровни: у каждого свой акцент */
+.cx [data-lv="0"]{--a:#c8bfae;--a-soft:rgba(200,191,174,.14);--a-line:rgba(200,191,174,.38)}
+.cx [data-lv="1"]{--a:#3fb37f;--a-soft:rgba(63,179,127,.16);--a-line:rgba(63,179,127,.42)}
+.cx [data-lv="2"]{--a:#c9a45c;--a-soft:rgba(201,164,92,.16);--a-line:rgba(201,164,92,.45)}
+.cx [data-lv="3"]{--a:#a9d8e8;--a-soft:rgba(169,216,232,.18);--a-line:rgba(169,216,232,.5)}
+
+.cx-serif{font-family:var(--serif);font-style:italic;font-weight:400;text-transform:none;letter-spacing:-.01em}
+.cx-note{font-size:13px;line-height:1.6;color:var(--ash);max-width:62ch}
+
+/* ================= HERO ================= */
+.cx-hero{position:relative;overflow:hidden;padding:clamp(140px,16vw,220px) 0 clamp(60px,7vw,110px)}
+.cx-hero-in{position:relative;z-index:2}
+.cx-orbs{position:absolute;inset:-10% -10% 0;pointer-events:none;filter:blur(70px);opacity:.7;z-index:0}
+.cx-orbs i{position:absolute;display:block;border-radius:50%;mix-blend-mode:screen;animation:cxDrift 22s ease-in-out infinite}
+.cx-orbs i:nth-child(1){width:46vw;height:46vw;left:-14vw;top:-12vw;background:radial-gradient(circle at 35% 35%,rgba(46,139,98,.75),transparent 66%);animation-duration:26s}
+.cx-orbs i:nth-child(2){width:38vw;height:38vw;right:-8vw;top:6vw;background:radial-gradient(circle at 50% 50%,rgba(169,216,232,.5),transparent 68%);animation-duration:31s;animation-delay:-6s}
+.cx-orbs i:nth-child(3){width:30vw;height:30vw;left:38%;bottom:-16vw;background:radial-gradient(circle at 50% 50%,rgba(201,164,92,.38),transparent 70%);animation-duration:24s;animation-delay:-11s}
+@keyframes cxDrift{
+  0%,100%{transform:translate3d(0,0,0) scale(1)}
+  33%{transform:translate3d(4vw,-3vw,0) scale(1.08)}
+  66%{transform:translate3d(-3vw,2vw,0) scale(.95)}
+}
+
+/* сигил: вращающиеся кольца */
+.cx-sigil{position:absolute;right:-6vw;top:8%;width:min(52vw,760px);aspect-ratio:1;z-index:1;pointer-events:none;opacity:.55}
+.cx-sigil svg{width:100%;height:100%;overflow:visible}
+.cx-sigil .ring{transform-origin:50% 50%}
+.cx-sigil .ring-a{animation:cxSpin 64s linear infinite}
+.cx-sigil .ring-b{animation:cxSpin 46s linear infinite reverse}
+.cx-sigil .ring-c{animation:cxSpin 90s linear infinite}
+.cx-sigil .pulse{animation:cxPulse 5.5s ease-in-out infinite}
+@keyframes cxSpin{to{transform:rotate(360deg)}}
+@keyframes cxPulse{0%,100%{opacity:.35}50%{opacity:.9}}
+
+.cx-hero h1{margin:6px 0 26px}
+.cx-hero h1 .cx-line{display:block;overflow:hidden}
+.cx-hero h1 .cx-line > span{display:inline-block;transform:translateY(110%);animation:cxUp 1.2s var(--ease) forwards}
+.cx-hero h1 .cx-line:nth-child(2) > span{animation-delay:.12s}
+@keyframes cxUp{to{transform:translateY(0)}}
+
+.cx-hero .lead{max-width:56ch}
+.cx-cta{display:flex;gap:14px;flex-wrap:wrap;margin:34px 0 46px}
+.cx-facts{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;max-width:820px;margin-top:8px}
+.cx-facts li{border-top:1px solid var(--line);padding-top:14px}
+.cx-facts b{display:block;font-family:var(--display);font-weight:700;font-size:clamp(20px,2.2vw,30px);letter-spacing:-.02em;line-height:1}
+.cx-facts span{display:block;margin-top:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ash)}
+
+/* ================= общие блоки ================= */
+.cx-sec{padding:clamp(60px,8vw,120px) 0;position:relative}
+.cx-sec + .cx-sec{border-top:1px solid var(--line)}
+.cx-h2{font-family:var(--display);font-weight:700;font-size:clamp(30px,4.4vw,66px);line-height:1;letter-spacing:-.03em;margin-bottom:22px}
+
+/* появление блоков */
+.cx-rv{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.cx-rv.in{opacity:1;transform:none}
+
+/* ================= шаги ================= */
+.cx-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(18px,2.4vw,36px);margin-top:44px}
+.cx-step{position:relative;padding:26px 0 0;border-top:1px solid var(--line)}
+.cx-step .n{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.2em;color:var(--a);margin-bottom:14px;display:block}
+.cx-step h3{font-family:var(--display);font-weight:700;font-size:clamp(18px,1.8vw,24px);line-height:1.2;letter-spacing:-.02em;margin-bottom:10px}
+.cx-step p{color:#c0bab0;font-size:15px}
+
+/* ================= уровни ================= */
+.cx-levels{border-top:1px solid var(--line)}
+.cx-levels-head{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(20px,3vw,60px);align-items:end}
+.cx-track{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin:clamp(40px,5vw,70px) 0 28px}
+.cx-track:before{content:"";position:absolute;left:0;right:0;top:25px;height:1px;background:var(--line)}
+.cx-track-fill{position:absolute;left:0;top:25px;height:1px;width:0;background:linear-gradient(90deg,var(--emerald2),var(--ice));box-shadow:0 0 16px rgba(169,216,232,.55);transition:width 1.2s var(--ease)}
+.cx-node{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:0 12px 0 0;text-align:left;cursor:pointer;background:none;border:0;color:inherit}
+.cx-dot{position:relative;width:52px;height:52px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;background:var(--ink);color:var(--ash);font-family:var(--display);font-weight:700;font-size:12px;transition:border-color .5s var(--ease),color .5s,box-shadow .6s,transform .6s var(--ease)}
+.cx-dot:after{content:"";position:absolute;inset:-8px;border-radius:50%;border:1px solid transparent;transition:border-color .6s}
+.cx-node:hover .cx-dot{color:var(--bone);border-color:var(--a-line);transform:translateY(-3px)}
+.cx-node[aria-selected="true"] .cx-dot{color:var(--a);border-color:var(--a);box-shadow:0 0 0 1px var(--a-soft),0 0 34px -6px var(--a);background:#0b0b0b}
+.cx-node[aria-selected="true"] .cx-dot:after{border-color:var(--a-soft);animation:cxRing 2.6s ease-out infinite}
+@keyframes cxRing{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+.cx-node .cx-node-t{font-family:var(--display);font-weight:700;font-size:clamp(15px,1.5vw,19px);letter-spacing:-.01em;line-height:1.15;color:var(--bone)}
+.cx-node .cx-node-s{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ash)}
+.cx-node[aria-selected="true"] .cx-node-s{color:var(--a)}
+
+/* карточка уровня */
+.cx-panel{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:6px;background:linear-gradient(150deg,rgba(239,234,224,.055),rgba(7,7,7,0) 60%);padding:clamp(24px,3.4vw,52px)}
+.cx-panel:before{content:"";position:absolute;left:-10%;right:-10%;top:-60%;height:120%;background:radial-gradient(ellipse at 22% 30%,var(--a-soft),transparent 62%);filter:blur(26px);opacity:.9;pointer-events:none;transition:background .8s var(--ease)}
+.cx-panel-grid{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(24px,3vw,56px)}
+.cx-badge{display:inline-flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--a);font-weight:700;margin-bottom:18px}
+.cx-badge:before{content:"";width:26px;height:1px;background:currentColor}
+.cx-panel h3{font-family:var(--display);font-weight:900;font-size:clamp(34px,4.6vw,64px);line-height:.95;letter-spacing:-.03em;text-transform:uppercase;margin-bottom:16px;color:var(--bone)}
+.cx-panel .cx-desc{color:#c9c3b8;font-size:clamp(15px,1.4vw,18px);line-height:1.6;max-width:44ch;min-height:4.8em}
+.cx-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:28px}
+.cx-metric{border-top:1px solid var(--line);padding-top:14px}
+.cx-metric span{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash);margin-bottom:8px}
+.cx-metric b{font-family:var(--display);font-weight:700;font-size:clamp(20px,2.1vw,30px);letter-spacing:-.02em;line-height:1.1;color:var(--a);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cx-metric--from b{font-size:clamp(15px,1.5vw,21px);white-space:normal}
+.cx-perks{list-style:none;display:grid;gap:2px;align-content:start}
+.cx-perks li{position:relative;display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.5;color:#d3cdc2}
+.cx-perks li:last-child{border-bottom:0}
+.cx-perks li:before{content:"";flex:0 0 7px;width:7px;height:7px;margin-top:8px;transform:rotate(45deg);background:var(--a);box-shadow:0 0 12px var(--a);opacity:.9}
+.cx-swap{transition:opacity .42s var(--ease),transform .42s var(--ease)}
+.cx-panel.is-out .cx-swap{opacity:0;transform:translateY(14px)}
+.cx-perks li{opacity:0;transform:translateY(10px);animation:cxPerk .7s var(--ease) forwards;animation-delay:calc(var(--i,0) * 60ms)}
+@keyframes cxPerk{to{opacity:1;transform:none}}
+
+/* ================= калькулятор ================= */
+.cx-calc-in{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,4vw,70px);align-items:center}
+.cx-range-wrap{margin-top:34px}
+.cx-range-label{display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin-bottom:14px}
+.cx-range-label b{font-family:var(--display);font-size:clamp(20px,2.4vw,30px);letter-spacing:-.02em;color:var(--bone);text-transform:none}
+.cx-range{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);border-radius:2px;outline:none;cursor:pointer}
+.cx-range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--ink);border:1px solid var(--bone);box-shadow:0 0 0 6px rgba(239,234,224,.08),0 0 24px rgba(169,216,232,.45);transition:transform .3s var(--ease),border-color .3s}
+.cx-range:hover::-webkit-slider-thumb{transform:scale(1.12);border-color:var(--ice)}
+.cx-range::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--ink);border:1px solid var(--bone);box-shadow:0 0 0 6px rgba(239,234,224,.08)}
+.cx-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(169,216,232,.25)}
+.cx-scale{position:relative;height:18px;margin-top:12px;font-size:11px;letter-spacing:.08em;color:var(--ash)}
+.cx-scale span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.cx-scale span:first-child{transform:none}
+.cx-scale span:last-child{transform:translateX(-100%)}
+
+.cx-calc-card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:6px;padding:clamp(22px,2.8vw,38px);background:linear-gradient(160deg,rgba(239,234,224,.06),rgba(7,7,7,0) 65%)}
+.cx-calc-card:before{content:"";position:absolute;inset:auto -30% -50% auto;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--a-soft),transparent 70%);filter:blur(20px);transition:background .8s var(--ease)}
+.cx-calc-level{position:relative;font-family:var(--display);font-weight:900;font-size:clamp(26px,3.2vw,44px);letter-spacing:-.03em;text-transform:uppercase;line-height:1;color:var(--a);transition:color .5s}
+.cx-calc-cb{position:relative;margin-top:14px;font-family:var(--serif);font-style:italic;font-size:clamp(18px,2vw,26px);color:#ded8cd}
+.cx-calc-cb b{font-style:normal;font-family:var(--display);font-weight:700;color:var(--bone);font-variant-numeric:tabular-nums}
+.cx-calc-points{position:relative;margin-top:10px;font-size:14px;color:var(--ash)}
+.cx-calc-points b{color:var(--bone);font-variant-numeric:tabular-nums}
+.cx-calc-next{position:relative;margin-top:18px;font-size:14px;line-height:1.5;color:#c9c3b8;min-height:3em}
+.cx-calc-bar{position:relative;margin-top:16px;height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+.cx-calc-bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--emerald2),var(--ice));box-shadow:0 0 14px rgba(169,216,232,.6);transition:width .7s var(--ease)}
+
+/* ================= бонусы (сетка) ================= */
+.cx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2vw,28px);margin-top:44px}
+.cx-tile{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:6px;padding:clamp(22px,2.4vw,32px);background:rgba(239,234,224,.02);transition:border-color .6s var(--ease),transform .6s var(--ease),background .6s}
+.cx-tile:hover{border-color:rgba(169,216,232,.32);transform:translateY(-4px);background:rgba(239,234,224,.04)}
+.cx-tile .ico{width:34px;height:34px;display:grid;place-items:center;color:var(--ice);margin-bottom:18px}
+.cx-tile h3{font-family:var(--display);font-weight:700;font-size:clamp(16px,1.6vw,20px);letter-spacing:-.02em;line-height:1.25;margin-bottom:10px}
+.cx-tile p{font-size:14.5px;line-height:1.6;color:#bdb7ad}
+
+/* ================= FAQ ================= */
+.cx-faq{margin-top:34px;border-bottom:1px solid var(--line)}
+.cx-q{border-top:1px solid var(--line)}
+.cx-q > button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:22px;padding:26px 0;text-align:left;font-family:var(--serif);font-size:clamp(19px,2.1vw,28px);line-height:1.25;color:var(--bone);transition:color .4s}
+.cx-q > button:hover{color:var(--ice)}
+.cx-q .pm{position:relative;flex:0 0 22px;width:22px;height:22px}
+.cx-q .pm:before,.cx-q .pm:after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:currentColor;transition:transform .5s var(--ease),opacity .4s}
+.cx-q .pm:after{transform:rotate(90deg)}
+.cx-q.open .pm:after{transform:rotate(0);opacity:0}
+.cx-q .cx-a{max-height:0;overflow:hidden;opacity:0;transition:max-height .6s var(--ease),opacity .45s,margin .5s}
+.cx-q.open .cx-a{opacity:1;margin-bottom:26px}
+.cx-q .cx-a p{font-size:15.5px;line-height:1.65;color:#c0bab0;max-width:76ch}
+
+/* ================= финальный призыв ================= */
+.cx-final{position:relative;overflow:hidden;padding:clamp(70px,9vw,130px) 0;border-top:1px solid var(--line)}
+.cx-final:before{content:"";position:absolute;inset:-40% -20% auto;height:150%;background:radial-gradient(ellipse at 50% 0%,rgba(46,139,98,.32),transparent 62%);filter:blur(40px);pointer-events:none}
+.cx-final-in{position:relative;text-align:center}
+.cx-final h2{font-family:var(--display);font-weight:900;font-size:clamp(30px,5.6vw,86px);line-height:.95;letter-spacing:-.04em;text-transform:uppercase;margin-bottom:22px}
+.cx-final p{color:#c9c3b8;max-width:56ch;margin:0 auto 34px}
+.cx-final .cx-cta{justify-content:center;margin-bottom:0}
+
+/* ================= адаптив ================= */
+@media (max-width:1100px){
+  .cx-sigil{width:70vw;right:-24vw;opacity:.4}
+  .cx-levels-head{grid-template-columns:1fr}
+  .cx-panel-grid{grid-template-columns:1fr}
+  .cx-calc-in{grid-template-columns:1fr}
+  .cx-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:900px){
+  .cx-hero{padding-top:clamp(120px,26vw,180px)}
+  .cx-sigil{display:none}
+  .cx-facts{grid-template-columns:1fr 1fr}
+  .cx-steps{grid-template-columns:1fr}
+  .cx-track{grid-template-columns:1fr 1fr;gap:26px 0;margin-bottom:22px}
+  .cx-track:before,.cx-track-fill{display:none}
+  .cx-node{padding-right:14px}
+  .cx-metrics{grid-template-columns:1fr 1fr}
+  .cx-grid{grid-template-columns:1fr}
+  .cx-panel .cx-desc{min-height:0}
+}
+@media (max-width:560px){
+  .cx-facts{gap:14px}
+  .cx-metrics{grid-template-columns:1fr}
+  .cx-cta .btn{width:100%;justify-content:space-between}
+}
+@media (prefers-reduced-motion:reduce){
+  .cx-rv{opacity:1;transform:none}
+  .cx-orbs i,.cx-sigil .ring,.cx-sigil .pulse,.cx-node[aria-selected="true"] .cx-dot:after{animation:none}
+  .cx-hero h1 .cx-line > span{transform:none;animation:none}
+  .cx-perks li{opacity:1;transform:none;animation:none}
+  .cx-track-fill,.cx-calc-bar span{transition:none}
+}

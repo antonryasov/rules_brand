@@ -300,7 +300,7 @@ form.simple input:focus,form.simple textarea:focus{outline:none;border-color:var
 /* ---------- подвал ---------- */
 footer{position:relative;padding:120px 0 40px;overflow:hidden;border-top:1px solid var(--line)}
 footer .mark{font-family:var(--display);font-weight:900;font-size:clamp(70px,22vw,400px);line-height:.78;letter-spacing:-.06em;text-transform:uppercase;white-space:nowrap;background:linear-gradient(180deg,rgba(239,234,224,.35),rgba(239,234,224,.02));-webkit-background-clip:text;background-clip:text;color:transparent;margin:0 -.02em 40px}
-footer .cols{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;font-size:14px;color:var(--ash);position:relative}
+footer .cols{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr 1fr;gap:32px;font-size:14px;color:var(--ash);position:relative}
 footer h4{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone);font-weight:700;margin-bottom:18px}
 footer ul{list-style:none;display:grid;gap:10px}
 footer a{transition:color .5s}
@@ -318,6 +318,7 @@ footer .legal{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
 /* ---------- адаптив ---------- */
 @media (max-width:1100px){
   header.site nav{display:none}
+  footer .cols{grid-template-columns:1fr 1fr 1fr}
   .burger{display:block}
   .grid-4{grid-template-columns:repeat(2,1fr)}
   .index-row{grid-template-columns:50px 1fr 90px}

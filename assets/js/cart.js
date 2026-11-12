@@ -494,6 +494,8 @@
     a.href = 'club.html';
     /* отдельная страница: не даём роутеру сайта подменить переход хешем */
     a.setAttribute('data-native', '');
+    a.setAttribute('aria-label', 'Личный кабинет');
+    a.title = 'Личный кабинет';
     a.innerHTML = '<span class="shop-club-ico" aria-hidden="true">' +
       '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
       '<circle cx="12" cy="8" r="3.6"/><path d="M4.6 20c.6-3.9 3.6-6.1 7.4-6.1s6.8 2.2 7.4 6.1"/></svg>' +

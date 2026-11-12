@@ -1,0 +1,287 @@
+<div class="cx">
+
+<!-- ==================== HERO ==================== -->
+<section class="cx-hero">
+  <div class="cx-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="cx-sigil" aria-hidden="true">
+    <svg viewBox="0 0 400 400" fill="none">
+      <g class="ring ring-a" stroke="rgba(169,216,232,.35)">
+        <circle cx="200" cy="200" r="196" stroke-dasharray="2 10" stroke-width="1"/>
+      </g>
+      <g class="ring ring-b" stroke="rgba(239,234,224,.22)">
+        <circle cx="200" cy="200" r="158" stroke-dasharray="46 14" stroke-width="1"/>
+        <circle cx="200" cy="200" r="158" stroke-dasharray="1 22" stroke-width="3" stroke="rgba(46,139,98,.6)"/>
+      </g>
+      <g class="ring ring-c" stroke="rgba(201,164,92,.35)">
+        <circle cx="200" cy="200" r="118" stroke-dasharray="120 30" stroke-width="1"/>
+      </g>
+      <circle class="pulse" cx="200" cy="200" r="76" stroke="rgba(169,216,232,.45)" stroke-width="1"/>
+      <circle cx="200" cy="200" r="3" fill="#efeae0"/>
+      <g class="ring ring-b" stroke="rgba(239,234,224,.5)">
+        <circle cx="200" cy="42" r="3" fill="#a9d8e8" stroke="none"/>
+        <circle cx="358" cy="200" r="2.5" fill="#c9a45c" stroke="none"/>
+        <circle cx="200" cy="358" r="2" fill="#efeae0" stroke="none"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="shell cx-hero-in">
+    <div class="kicker">RULES · Private club</div>
+    <h1 class="h-xl">
+      <span class="cx-line"><span>Private</span></span>
+      <span class="cx-line"><span class="cx-serif">club</span></span>
+    </h1>
+    <p class="lead">Ты не просто покупаешь свечи — ты выбираешь, как звучит твоё пространство.
+      Private club — это то, что остаётся с тобой после первого заказа: баллы, которые возвращаются деньгами,
+      уровни, которые открывают закрытые вещи, и прямой разговор с тем, кто эти вещи делает.</p>
+
+    <div class="cx-cta">
+      <a class="btn solid" href="club.html" data-native>Войти в кабинет <span class="arr">→</span></a>
+      <button class="btn" type="button" data-cx-scroll="cx-levels">Смотреть уровни <span class="arr">↓</span></button>
+    </div>
+
+    <ul class="cx-facts">
+      <li><b>5–50 %</b><span>кэшбэк баллами</span></li>
+      <li><b>4</b><span>уровня доступа</span></li>
+      <li><b>1 ₽</b><span>= 1 балл</span></li>
+      <li><b>30 %</b><span>заказа можно закрыть баллами</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== ЧТО ЭТО ==================== -->
+<section class="cx-sec">
+  <div class="shell">
+    <div class="cx-rv">
+      <div class="kicker">Как это работает</div>
+      <h2 class="cx-h2">Не карта скидок.<br><span class="cx-serif">Долгие отношения.</span></h2>
+      <p class="lead">Никаких взносов, платных подписок и «купи уровень за деньги». Ты просто покупаешь то,
+        что тебе нравится, — а система сама считает, сколько ты уже вложил в свой запах, и возвращает часть баллами.</p>
+    </div>
+
+    <div class="cx-steps">
+      <div class="cx-step cx-rv" data-lv="0">
+        <span class="n">01</span>
+        <h3>Первый заказ — и ты в клубе</h3>
+        <p>После первой покупки открывается личный кабинет: там заказы, статусы, доставка и баллы.
+          Ты сразу Странник — 5 % кэшбэка и приветственные баллы за вход.</p>
+      </div>
+      <div class="cx-step cx-rv" data-lv="1">
+        <span class="n">02</span>
+        <h3>Баллы возвращаются деньгами</h3>
+        <p>1 балл = 1 ₽. Кэшбэк капает с каждой оплаченной покупки, а закрыть баллами можно
+          до 30 % суммы заказа. Баллы не сгорают — копи сколько хочешь.</p>
+      </div>
+      <div class="cx-step cx-rv" data-lv="2">
+        <span class="n">03</span>
+        <h3>Уровень растёт сам</h3>
+        <p>Считаем сумму всех твоих покупок за всё время. Перешёл порог — кэшбэк вырос.
+          Уровень не снижается и не требует продления: он твой.</p>
+      </div>
+    </div>
+    <p class="cx-note cx-rv" style="margin-top:36px">Покупал офлайн, на маркете или оптом?
+      Напиши в бот — зачтём покупки и поднимем уровень вручную.</p>
+  </div>
+</section>
+
+<!-- ==================== УРОВНИ ==================== -->
+<section class="cx-sec cx-levels" id="cx-levels">
+  <div class="shell">
+    <div class="cx-levels-head cx-rv">
+      <div>
+        <div class="kicker">Уровни</div>
+        <h2 class="cx-h2">Четыре ступени.<br><span class="cx-serif">Один маршрут.</span></h2>
+      </div>
+      <p class="lead">Каждый уровень — это новый процент кэшбэка и новый доступ. Нажми на ступень,
+        чтобы увидеть, что открывается.</p>
+    </div>
+
+    <div class="cx-track" role="tablist" aria-label="Уровни клуба">
+      <div class="cx-track-fill" data-cx-fill></div>
+      <button class="cx-node" type="button" role="tab" data-cx-level="0" data-lv="0" aria-selected="true">
+        <span class="cx-dot">01</span>
+        <span class="cx-node-t">Странник</span>
+        <span class="cx-node-s">с первого заказа</span>
+      </button>
+      <button class="cx-node" type="button" role="tab" data-cx-level="1" data-lv="1" aria-selected="false">
+        <span class="cx-dot">02</span>
+        <span class="cx-node-t">Искатель</span>
+        <span class="cx-node-s">от 15 000 ₽</span>
+      </button>
+      <button class="cx-node" type="button" role="tab" data-cx-level="2" data-lv="2" aria-selected="false">
+        <span class="cx-dot">03</span>
+        <span class="cx-node-t">Покоритель</span>
+        <span class="cx-node-s">от 40 000 ₽</span>
+      </button>
+      <button class="cx-node" type="button" role="tab" data-cx-level="3" data-lv="3" aria-selected="false">
+        <span class="cx-dot">04</span>
+        <span class="cx-node-t">Легенда</span>
+        <span class="cx-node-s">от 80 000 ₽</span>
+      </button>
+    </div>
+
+    <div class="cx-panel" data-cx-panel data-lv="0" role="tabpanel" aria-live="polite">
+      <div class="cx-panel-grid">
+        <div class="cx-swap">
+          <div class="cx-badge" data-cx-badge>Уровень 01 · вход свободный</div>
+          <h3 data-cx-title>Странник</h3>
+          <p class="cx-desc" data-cx-desc>С этого начинается всё. Ты пробуешь RULES на себе: одна свеча,
+            один аромат, одно правило — и решаешь, остаться здесь или идти выше.</p>
+          <div class="cx-metrics">
+            <div class="cx-metric"><span>Кэшбэк</span><b data-cx-cb>5 %</b></div>
+            <div class="cx-metric cx-metric--from"><span>Порог</span><b data-cx-from>с первого заказа</b></div>
+            <div class="cx-metric"><span>Баллов с 5 000 ₽</span><b data-cx-points>250</b></div>
+          </div>
+        </div>
+        <ul class="cx-perks cx-swap" data-cx-perks>
+          <li style="--i:0">Кэшбэк 5 % баллами с каждой покупки</li>
+          <li style="--i:1">Приветственные баллы за вход в кабинет</li>
+          <li style="--i:2">Личный кабинет: заказы, статусы, доставка</li>
+          <li style="--i:3">Переписка с продавцом в боте — прямо по заказу</li>
+          <li style="--i:4">Баллы не сгорают: копи и трать когда удобно</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== КАЛЬКУЛЯТОР ==================== -->
+<section class="cx-sec">
+  <div class="shell cx-calc-in">
+    <div class="cx-rv">
+      <div class="kicker">Примерь на себя</div>
+      <h2 class="cx-h2">Где ты<br><span class="cx-serif">прямо сейчас?</span></h2>
+      <p class="lead">Подвинь ползунок на сумму своих покупок за всё время — покажу твой уровень,
+        кэшбэк и сколько баллов ты бы уже накопил.</p>
+
+      <div class="cx-range-wrap">
+        <div class="cx-range-label"><span>Покупки за всё время</span><b data-cx-sum>0 ₽</b></div>
+        <input class="cx-range" type="range" min="0" max="120000" step="1000" value="0"
+               data-cx-range aria-label="Сумма покупок за всё время">
+        <div class="cx-scale"><span>0 ₽</span><span>15 000 ₽</span><span>40 000 ₽</span><span>80 000 ₽</span><span>120 000 ₽</span></div>
+      </div>
+    </div>
+
+    <div class="cx-calc-card cx-rv" data-cx-calc-card data-lv="0">
+      <div class="cx-calc-level" data-cx-calc-level>Странник</div>
+      <div class="cx-calc-cb"><b data-cx-calc-cb>5</b> % кэшбэк баллами</div>
+      <div class="cx-calc-points">Баллов за эти покупки: <b data-cx-calc-points>0</b></div>
+      <div class="cx-calc-next" data-cx-calc-next>До уровня «Искатель» — 15 000 ₽ покупок.</div>
+      <div class="cx-calc-bar"><span data-cx-calc-fill></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== БОНУСЫ ==================== -->
+<section class="cx-sec">
+  <div class="shell">
+    <div class="cx-rv">
+      <div class="kicker">Что даёт клуб</div>
+      <h2 class="cx-h2">Кроме процента<br><span class="cx-serif">есть кое-что важнее.</span></h2>
+    </div>
+    <div class="cx-grid">
+      <div class="cx-tile cx-rv">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 12l-9 9.5L3 12z"/><path d="M12 7v10"/></svg></div>
+        <h3>Закрытые распродажи</h3>
+        <p>Тихие партии, тестовые заливки и остатки, о которых мы не пишем в каталоге.
+          Видны в кабинете с определённого уровня.</p>
+      </div>
+      <div class="cx-tile cx-rv">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+        <h3>Ранний доступ</h3>
+        <p>Новые ароматы и коллекции появляются у своих раньше, чем в общем каталоге.
+          Иногда — до того, как мы вообще о них объявим.</p>
+      </div>
+      <div class="cx-tile cx-rv">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.9-.9L3 20.5l1.6-4.6A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/></svg></div>
+        <h3>Прямая линия</h3>
+        <p>Вопрос по аромату, заказу или упаковке — пишешь в бот, отвечает человек,
+          который варил твою свечу. Без операторов и скриптов.</p>
+      </div>
+      <div class="cx-tile cx-rv">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg></div>
+        <h3>Кабинет вместо переписки</h3>
+        <p>Все заказы, статусы, доставка и баллы в одном месте.
+          Вход — через Telegram, по номеру телефона из заказа.</p>
+      </div>
+      <div class="cx-tile cx-rv">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M4 12v6a2 2 0 0 0 2 2h1v-7H6a2 2 0 0 0-2 1z"/><path d="M20 12v6a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 1z"/></svg></div>
+        <h3>Подбор без навязывания</h3>
+        <p>Напиши задачу — «хочу тихий аромат для работы» — и мы соберём набор
+          из того, что реально есть в наличии. Без давления на дорогое.</p>
+      </div>
+      <div class="cx-tile cx-rv">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18.2 6.8a4.5 4.5 0 0 0-6.4 0L12 6.6l-.2.2a4.5 4.5 0 1 0-6.4 6.4L12 20l6.6-6.8a4.5 4.5 0 0 0-.4-6.4z"/></svg></div>
+        <h3>Уважение к твоему выбору</h3>
+        <p>Никаких рассылок «купи сейчас» каждый день. Новости — редко и по делу.
+          Отписаться можно одной кнопкой.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FAQ ==================== -->
+<section class="cx-sec">
+  <div class="shell">
+    <div class="cx-rv">
+      <div class="kicker">Вопросы</div>
+      <h2 class="cx-h2">Коротко <span class="cx-serif">о главном</span></h2>
+    </div>
+
+    <div class="cx-faq">
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Что такое баллы и сколько они стоят?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>1 балл = 1 ₽. Кэшбэк начисляется баллами с суммы оплаченного заказа:
+          на первом уровне — 5 %, на последнем — 50 %. Баллами можно закрыть до 30 % стоимости заказа,
+          остальное оплачиваешь как удобно.</p></div>
+      </div>
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Когда приходят баллы?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>После того как продавец подтвердит оплату заказа. Обычно это происходит в тот же день.
+          Начисление видно в кабинете — в разделе с баллами, там же история операций.</p></div>
+      </div>
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Баллы сгорают?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>Нет. У баллов нет срока действия: копи сколько хочешь и трать,
+          когда появится то, что тебе действительно нужно.</p></div>
+      </div>
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Уровень может понизиться?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>Нет. Уровень считается по сумме всех твоих покупок за всё время,
+          а не за год. Набрал 40 000 ₽ — остаёшься Покорителем, даже если потом покупаешь реже.</p></div>
+      </div>
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Нужно ли что-то платить за клуб?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>Нет. Вход бесплатный, взносов и платных уровней не существует.
+          Клуб начинается с первого заказа, а кабинет открывается входом через Telegram-бота.</p></div>
+      </div>
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Где смотреть свой уровень и баллы?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>В личном кабинете — значок человека рядом с корзиной на сайте.
+          Или в боте: кнопка «Кабинет и баллы». Там же — код для входа с другого устройства.</p></div>
+      </div>
+      <div class="cx-q">
+        <button type="button" aria-expanded="false">Покупал раньше, до клуба — баллы начислят?<span class="pm" aria-hidden="true"></span></button>
+        <div class="cx-a"><p>Да. Сумма покупок считается по истории заказов с тем же телефоном,
+          поэтому старые заказы тоже работают на твой уровень. Если заказов не видно — напиши в бот,
+          свяжем их вручную.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ФИНАЛ ==================== -->
+<section class="cx-final">
+  <div class="shell cx-final-in">
+    <div class="kicker" style="justify-content:center">Вход</div>
+    <h2>Забери<br><span class="cx-serif">свой уровень</span></h2>
+    <p>Кабинет открывается через Telegram-бота — по номеру телефона, который ты указывал в заказе.
+      Всё остальное уже посчитано.</p>
+    <div class="cx-cta">
+      <a class="btn solid" href="club.html" data-native>Открыть кабинет <span class="arr">→</span></a>
+      <a class="btn" href="catalog.html">Выбрать аромат <span class="arr">→</span></a>
+    </div>
+  </div>
+</section>
+
+</div>
